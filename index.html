@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mi Primera App Web</title>
+    <!--
+      Esta etiqueta enlaza nuestro archivo de estilos CSS.
+      Gracias a esto, el navegador sabe dónde buscar los estilos.
+    -->
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!--
+      Un contenedor principal para mantener todo ordenado.
+      Dentro pondremos el título, la descripción y la interacción.
+    -->
+    <main class="card">
+      <h1>¡Hola! Esta es mi primera app</h1>
+      <p>
+        Escribe tu nombre y presiona el botón. JavaScript actualizará el saludo.
+      </p>
+
+      <!--
+        Etiqueta y campo de texto para que el usuario escriba su nombre.
+        El atributo "id" nos permite encontrar este elemento con JavaScript.
+      -->
+      <label for="nameInput">Tu nombre</label>
+      <input id="nameInput" type="text" placeholder="Por ejemplo: Ana" />
+
+      <!--
+        Botón que el usuario presiona.
+        JavaScript escuchará este clic para reaccionar.
+      -->
+      <button id="greetButton">Saludar</button>
+
+      <!--
+        Aquí aparecerá el resultado.
+        Empezamos con un mensaje amigable.
+      -->
+      <p id="message" class="message">¡Listo para saludarte!</p>
+    </main>
+
+    <!--
+      Este script conecta el archivo de JavaScript.
+      Se coloca al final para que el HTML cargue primero.
+    -->
+    <script src="script.js"></script>
+  </body>
+</html>
