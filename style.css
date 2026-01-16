@@ -1,0 +1,74 @@
+/*
+  ESTILOS BÁSICOS
+  Este archivo se encarga de la apariencia (colores, tamaños, espacios).
+*/
+
+/*
+  Aplicamos un estilo global al body.
+  font-family define la tipografía principal.
+*/
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  background: #f3f4f6;
+  color: #1f2933;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+/*
+  Un "card" es una caja con sombra.
+  Hacemos que todo el contenido tenga un ancho cómodo.
+*/
+.card {
+  background: #ffffff;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
+  width: min(420px, 90%);
+  text-align: center;
+}
+
+/*
+  Estilos para el campo de texto y el botón.
+  "display: block" hace que ocupen una línea completa.
+*/
+input,
+button {
+  display: block;
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  font-size: 1rem;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+}
+
+/*
+  Cambiamos el color del botón y quitamos el borde.
+*/
+button {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/*
+  Efecto al pasar el mouse sobre el botón.
+*/
+button:hover {
+  background: #1d4ed8;
+}
+
+/*
+  Estilo especial para el mensaje final.
+*/
+.message {
+  margin-top: 1.25rem;
+  font-size: 1.1rem;
+  color: #0f172a;
+}
