@@ -82,7 +82,15 @@ body {
   gap: 16px;
 }
 
+.section.expense-list {
+  display: none;
+}
+
 .section.is-visible {
+  display: grid;
+}
+
+.section.expense-list.is-visible {
   display: grid;
 }
 

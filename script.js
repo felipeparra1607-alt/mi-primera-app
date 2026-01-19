@@ -19,7 +19,7 @@ const monthlyTotal = document.getElementById("monthlyTotal");
 const formMessage = document.getElementById("formMessage");
 const tabButtons = document.querySelectorAll(".tab-button");
 const addView = document.getElementById("addView");
-const viewView = document.getElementById("viewView");
+const viewExpenses = document.getElementById("viewExpenses");
 const categorySummary = document.getElementById("categorySummary");
 const chartFills = document.querySelectorAll(".chart-fill");
 
@@ -310,8 +310,8 @@ const setActiveView = (view) => {
   const isAddView = view === "add";
   addView.hidden = !isAddView;
   addView.classList.toggle("is-visible", isAddView);
-  viewView.hidden = isAddView;
-  viewView.classList.toggle("is-visible", !isAddView);
+  viewExpenses.hidden = isAddView;
+  viewExpenses.classList.toggle("is-visible", !isAddView);
 
   tabButtons.forEach((button) => {
     button.classList.toggle("is-active", button.dataset.view === view);
