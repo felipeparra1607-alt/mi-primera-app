@@ -53,10 +53,37 @@ body {
   color: var(--muted);
 }
 
+/* Barra superior con pestañas. */
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.tab-button {
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  padding: 12px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tab-button.is-active {
+  background: #1d4ed8;
+  color: #fff;
+  border-color: #1d4ed8;
+}
+
 /* Secciones claras para Añadir / Ver gastos. */
 .section {
-  display: grid;
+  display: none;
   gap: 16px;
+}
+
+.section.is-visible {
+  display: grid;
 }
 
 .section h2 {
@@ -145,6 +172,81 @@ select:focus {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.summary {
+  display: grid;
+  gap: 16px;
+}
+
+.category-summary {
+  display: grid;
+  gap: 12px;
+}
+
+.category-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 6px;
+}
+
+.category-card span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.category-card strong {
+  font-size: 1.1rem;
+}
+
+.chart {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.chart-row {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  align-items: center;
+  gap: 12px;
+  font-weight: 600;
+}
+
+.chart-bar {
+  background: #f1f5f9;
+  border-radius: 999px;
+  height: 12px;
+  overflow: hidden;
+}
+
+.chart-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: #60a5fa;
+  border-radius: inherit;
+  transition: width 0.2s ease;
+}
+
+.chart-fill[data-category="Comida"] {
+  background: #f97316;
+}
+
+.chart-fill[data-category="Ocio"] {
+  background: #8b5cf6;
+}
+
+.chart-fill[data-category="Transporte"] {
+  background: #22c55e;
+}
+
+.chart-fill[data-category="Otros"] {
+  background: #0ea5e9;
+}
+
 .expense-items {
   list-style: none;
   margin: 0;
@@ -206,6 +308,11 @@ select:focus {
   /* En móvil, filtros uno debajo del otro. */
   .filters {
     grid-template-columns: 1fr;
+  }
+
+  .chart-row {
+    grid-template-columns: 1fr;
+    align-items: start;
   }
 
   .expense-item {

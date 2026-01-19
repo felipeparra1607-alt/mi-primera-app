@@ -20,7 +20,16 @@
         </p>
       </header>
 
-      <section class="section">
+      <nav class="tabs" aria-label="Cambiar vista">
+        <button class="tab-button is-active" type="button" data-view="add">
+          Añadir gasto
+        </button>
+        <button class="tab-button" type="button" data-view="view">
+          Ver gastos
+        </button>
+      </nav>
+
+      <section class="section is-visible" id="addView">
         <h2>Añadir gasto</h2>
         <form class="expense-form" id="expenseForm">
           <label class="field">
@@ -34,40 +43,40 @@
             />
           </label>
 
-        <label class="field">
-          <span>Cantidad (€)</span>
-          <input
-            type="number"
-            id="amountInput"
-            name="amount"
-            min="0.01"
-            step="0.01"
-            placeholder="0.00"
-            required
-          />
-        </label>
+          <label class="field">
+            <span>Cantidad (€)</span>
+            <input
+              type="number"
+              id="amountInput"
+              name="amount"
+              min="0.01"
+              step="0.01"
+              placeholder="0.00"
+              required
+            />
+          </label>
 
-        <label class="field">
-          <span>Categoría</span>
-          <select id="categoryInput" name="category">
-            <option value="Comida">Comida</option>
-            <option value="Transporte">Transporte</option>
-            <option value="Ocio">Ocio</option>
-            <option value="Otros">Otros</option>
-          </select>
-        </label>
+          <label class="field">
+            <span>Categoría</span>
+            <select id="categoryInput" name="category">
+              <option value="Comida">Comida</option>
+              <option value="Transporte">Transporte</option>
+              <option value="Ocio">Ocio</option>
+              <option value="Otros">Otros</option>
+            </select>
+          </label>
 
-        <label class="field">
-          <span>Fecha</span>
-          <input type="date" id="dateInput" name="date" required />
-        </label>
+          <label class="field">
+            <span>Fecha</span>
+            <input type="date" id="dateInput" name="date" required />
+          </label>
 
-        <button type="submit" class="primary-button">Añadir gasto</button>
-        <p class="helper" id="formMessage" aria-live="polite"></p>
+          <button type="submit" class="primary-button">Añadir gasto</button>
+          <p class="helper" id="formMessage" aria-live="polite"></p>
         </form>
       </section>
 
-      <section class="expense-list section">
+      <section class="expense-list section" id="viewView" hidden>
         <h2>Ver gastos</h2>
         <div class="filters">
           <label class="field">
@@ -79,7 +88,39 @@
             <select id="monthSelect"></select>
           </label>
         </div>
-        <div class="total" id="monthlyTotal">Total (---- - --): €0.00</div>
+
+        <div class="summary">
+          <div class="total" id="monthlyTotal">Total (---- - --): €0.00</div>
+          <div class="category-summary" id="categorySummary"></div>
+        </div>
+
+        <div class="chart" aria-label="Gráfico de gastos por categoría">
+          <div class="chart-row">
+            <span>Comida</span>
+            <div class="chart-bar">
+              <span data-category="Comida" class="chart-fill"></span>
+            </div>
+          </div>
+          <div class="chart-row">
+            <span>Ocio</span>
+            <div class="chart-bar">
+              <span data-category="Ocio" class="chart-fill"></span>
+            </div>
+          </div>
+          <div class="chart-row">
+            <span>Transporte</span>
+            <div class="chart-bar">
+              <span data-category="Transporte" class="chart-fill"></span>
+            </div>
+          </div>
+          <div class="chart-row">
+            <span>Otros</span>
+            <div class="chart-bar">
+              <span data-category="Otros" class="chart-fill"></span>
+            </div>
+          </div>
+        </div>
+
         <ul id="expenseItems" class="expense-items"></ul>
       </section>
     </main>

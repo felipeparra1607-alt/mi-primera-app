@@ -17,6 +17,11 @@ const monthSelect = document.getElementById("monthSelect");
 const expenseItems = document.getElementById("expenseItems");
 const monthlyTotal = document.getElementById("monthlyTotal");
 const formMessage = document.getElementById("formMessage");
+const tabButtons = document.querySelectorAll(".tab-button");
+const addView = document.getElementById("addView");
+const viewView = document.getElementById("viewView");
+const categorySummary = document.getElementById("categorySummary");
+const chartFills = document.querySelectorAll(".chart-fill");
 
 let expenses = [];
 
@@ -41,6 +46,8 @@ const MONTHS = [
   "Noviembre",
   "Diciembre",
 ];
+
+const CATEGORIES = ["Comida", "Ocio", "Transporte", "Otros"];
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat("es-ES", {
@@ -99,6 +106,58 @@ const buildYearOptions = () => {
     yearSelect.value || currentYear,
     Number(monthSelect.value || 0)
   );
+};
+
+const getCategoryTotals = () => {
+  const totals = Object.fromEntries(CATEGORIES.map((item) => [item, 0]));
+
+  getFilteredExpenses().forEach((expense) => {
+    if (Object.prototype.hasOwnProperty.call(totals, expense.category)) {
+      totals[expense.category] += expense.amount;
+    }
+  });
+
+  return totals;
+};
+
+const renderCategorySummary = () => {
+  const totals = getCategoryTotals();
+  const totalAmount = Object.values(totals).reduce(
+    (sum, value) => sum + value,
+    0
+  );
+
+  categorySummary.innerHTML = "";
+
+  CATEGORIES.forEach((category) => {
+    const amount = totals[category];
+    const percentage = totalAmount > 0 ? (amount / totalAmount) * 100 : 0;
+
+    const card = document.createElement("div");
+    card.className = "category-card";
+
+    const label = document.createElement("span");
+    label.textContent = category;
+
+    const value = document.createElement("strong");
+    value.textContent = `${formatCurrency(amount)} · ${percentage.toFixed(0)}%`;
+
+    card.appendChild(label);
+    card.appendChild(value);
+    categorySummary.appendChild(card);
+  });
+};
+
+const renderChart = () => {
+  const totals = getCategoryTotals();
+  const maxValue = Math.max(...Object.values(totals), 0);
+
+  chartFills.forEach((bar) => {
+    const category = bar.dataset.category;
+    const value = totals[category] ?? 0;
+    const width = maxValue > 0 ? (value / maxValue) * 100 : 0;
+    bar.style.width = `${width}%`;
+  });
 };
 
 const getFilteredExpenses = () => {
@@ -167,6 +226,7 @@ const renderExpenses = () => {
       saveExpenses();
       renderExpenses();
       updateTotal();
+      updateAnalytics();
     });
 
     item.appendChild(info);
@@ -175,6 +235,12 @@ const renderExpenses = () => {
 
     expenseItems.appendChild(item);
   });
+};
+
+// Actualiza el resumen y el gráfico según el periodo visible.
+const updateAnalytics = () => {
+  renderCategorySummary();
+  renderChart();
 };
 
 const showMessage = (text, type = "error") => {
@@ -223,6 +289,7 @@ const addExpense = (event) => {
   buildYearOptions();
   renderExpenses();
   updateTotal();
+  updateAnalytics();
 
   expenseForm.reset();
   dateInput.value = today.toISOString().slice(0, 10);
@@ -235,9 +302,29 @@ const loadExpenses = () => {
   buildYearOptions();
   renderExpenses();
   updateTotal();
+  updateAnalytics();
+};
+
+// Alterna entre vistas tipo pestañas.
+const setActiveView = (view) => {
+  const isAddView = view === "add";
+  addView.hidden = !isAddView;
+  addView.classList.toggle("is-visible", isAddView);
+  viewView.hidden = isAddView;
+  viewView.classList.toggle("is-visible", !isAddView);
+
+  tabButtons.forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.view === view);
+  });
 };
 
 expenseForm.addEventListener("submit", addExpense);
+tabButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    setActiveView(button.dataset.view);
+  });
+});
+
 yearSelect.addEventListener("change", () => {
   selectedMonthKey = buildMonthKey(
     yearSelect.value || currentYear,
@@ -245,6 +332,7 @@ yearSelect.addEventListener("change", () => {
   );
   renderExpenses();
   updateTotal();
+  updateAnalytics();
 });
 
 monthSelect.addEventListener("change", () => {
@@ -254,6 +342,7 @@ monthSelect.addEventListener("change", () => {
   );
   renderExpenses();
   updateTotal();
+  updateAnalytics();
 });
 
 dateInput.value = today.toISOString().slice(0, 10);
@@ -262,4 +351,5 @@ buildYearOptions();
 monthSelect.value = currentMonthIndex.toString();
 yearSelect.value = currentYear;
 selectedMonthKey = buildMonthKey(currentYear, currentMonthIndex);
+setActiveView("add");
 loadExpenses();
