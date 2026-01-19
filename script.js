@@ -182,4 +182,6 @@ monthInput.addEventListener("change", () => {
 
 dateInput.value = today.toISOString().slice(0, 10);
 monthInput.value = currentMonthKey;
+
+dateInput.value = today.toISOString().slice(0, 10);
 loadExpenses();
