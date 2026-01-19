@@ -149,7 +149,8 @@ const renderYearlyChart = () => {
 
     const fill = document.createElement("span");
     fill.className = "yearly-bar__fill";
-    fill.style.height = `${maxValue > 0 ? (value / maxValue) * 100 : 0}%`;
+    const barHeight = maxValue > 0 ? (value / maxValue) * 100 : 0;
+    fill.style.height = `${barHeight}%`;
 
     const tooltip = document.createElement("span");
     tooltip.className = "yearly-bar__tooltip";
@@ -157,11 +158,18 @@ const renderYearlyChart = () => {
 
     bar.appendChild(fill);
     bar.appendChild(tooltip);
-    bar.addEventListener("click", () => {
+    bar.addEventListener("pointerdown", (event) => {
+      if (event.pointerType !== "touch") {
+        return;
+      }
       yearlyBars.querySelectorAll(".yearly-bar").forEach((button) => {
         button.classList.remove("is-tooltip");
       });
       bar.classList.add("is-tooltip");
+    });
+
+    bar.addEventListener("mouseleave", () => {
+      bar.classList.remove("is-tooltip");
     });
 
     yearlyBars.appendChild(bar);
@@ -241,47 +249,50 @@ const renderExpenses = () => {
     header.appendChild(subtitle);
     item.appendChild(header);
 
-    const details = document.createElement("div");
-    details.className = "category-expenses";
-    details.hidden = expandedCategory !== category;
+    if (expandedCategory === category) {
+      const details = document.createElement("div");
+      details.className = "category-expenses";
 
-    categoryExpenses.forEach((expense) => {
-      const expenseRow = document.createElement("div");
-      expenseRow.className = "category-expense";
+      categoryExpenses.forEach((expense) => {
+        const expenseRow = document.createElement("div");
+        expenseRow.className = "category-expense";
 
-      const expenseHeader = document.createElement("div");
-      expenseHeader.className = "category-expense-header";
+        const expenseHeader = document.createElement("div");
+        expenseHeader.className = "category-expense-header";
 
-      const concept = document.createElement("span");
-      concept.textContent = expense.concept;
+        const concept = document.createElement("span");
+        concept.textContent = expense.concept;
 
-      const amountText = document.createElement("span");
-      amountText.textContent = formatCurrency(expense.amount);
+        const amountText = document.createElement("span");
+        amountText.textContent = formatCurrency(expense.amount);
 
-      expenseHeader.appendChild(concept);
-      expenseHeader.appendChild(amountText);
+        expenseHeader.appendChild(concept);
+        expenseHeader.appendChild(amountText);
 
-      const meta = document.createElement("div");
-      meta.className = "category-expense-meta";
-      meta.textContent = expense.date;
+        const meta = document.createElement("div");
+        meta.className = "category-expense-meta";
+        meta.textContent = expense.date;
 
-      const deleteButton = document.createElement("button");
-      deleteButton.className = "delete-button";
-      deleteButton.textContent = "Eliminar";
-      deleteButton.addEventListener("click", () => {
-        expenses = expenses.filter((item) => item.id !== expense.id);
-        saveExpenses();
-        buildYearOptions();
-        renderExpenses();
-        updateTotal();
-        updateAnalytics();
+        const deleteButton = document.createElement("button");
+        deleteButton.className = "delete-button";
+        deleteButton.textContent = "Eliminar";
+        deleteButton.addEventListener("click", () => {
+          expenses = expenses.filter((item) => item.id !== expense.id);
+          saveExpenses();
+          buildYearOptions();
+          renderExpenses();
+          updateTotal();
+          updateAnalytics();
+        });
+
+        expenseRow.appendChild(expenseHeader);
+        expenseRow.appendChild(meta);
+        expenseRow.appendChild(deleteButton);
+        details.appendChild(expenseRow);
       });
 
-      expenseRow.appendChild(expenseHeader);
-      expenseRow.appendChild(meta);
-      expenseRow.appendChild(deleteButton);
-      details.appendChild(expenseRow);
-    });
+      item.appendChild(details);
+    }
 
     header.addEventListener("click", () => {
       expandedCategory = expandedCategory === category ? null : category;
@@ -295,7 +306,6 @@ const renderExpenses = () => {
       }
     });
 
-    item.appendChild(details);
     categoryList.appendChild(item);
   });
 };
