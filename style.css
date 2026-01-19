@@ -191,6 +191,7 @@ select:focus {
   padding: 16px;
   display: grid;
   gap: 12px;
+  overflow-x: auto;
 }
 
 .yearly-chart__labels {
@@ -200,6 +201,7 @@ select:focus {
   font-size: 0.75rem;
   color: var(--muted);
   text-align: center;
+  min-width: 520px;
 }
 
 .yearly-chart__bars {
@@ -208,18 +210,25 @@ select:focus {
   gap: 6px;
   align-items: end;
   min-height: 120px;
+  min-width: 520px;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
 }
 
 .yearly-bar {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   align-items: end;
   cursor: pointer;
+  background: transparent;
+  border: none;
+  padding: 0;
+  position: relative;
 }
 
 .yearly-bar__fill {
   width: 100%;
-  height: 0%;
+  height: 0;
   background: #93c5fd;
   border-radius: 10px;
   transition: height 0.2s ease, background 0.2s ease;
@@ -229,10 +238,26 @@ select:focus {
   background: #2563eb;
 }
 
-.yearly-bar__value {
+.yearly-bar__tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translate(-50%, -6px);
+  background: #0f172a;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 8px;
   font-size: 0.75rem;
-  text-align: center;
-  color: var(--muted);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.yearly-bar:hover .yearly-bar__tooltip,
+.yearly-bar.is-tooltip .yearly-bar__tooltip,
+.yearly-bar:focus-visible .yearly-bar__tooltip {
+  opacity: 1;
 }
 
 .category-list {

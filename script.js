@@ -151,18 +151,17 @@ const renderYearlyChart = () => {
     fill.className = "yearly-bar__fill";
     fill.style.height = `${maxValue > 0 ? (value / maxValue) * 100 : 0}%`;
 
-    const label = document.createElement("span");
-    label.className = "yearly-bar__value";
-    label.textContent = value > 0 ? `${Math.round(value)}€` : "0€";
+    const tooltip = document.createElement("span");
+    tooltip.className = "yearly-bar__tooltip";
+    tooltip.textContent = `${MONTHS[index]}: ${formatCurrency(value)}`;
 
     bar.appendChild(fill);
-    bar.appendChild(label);
+    bar.appendChild(tooltip);
     bar.addEventListener("click", () => {
-      monthSelect.value = index.toString();
-      selectedMonthKey = buildMonthKey(year, index);
-      renderExpenses();
-      updateTotal();
-      updateAnalytics();
+      yearlyBars.querySelectorAll(".yearly-bar").forEach((button) => {
+        button.classList.remove("is-tooltip");
+      });
+      bar.classList.add("is-tooltip");
     });
 
     yearlyBars.appendChild(bar);
@@ -193,7 +192,7 @@ const saveExpenses = () => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
 };
 
-const expandedCategories = new Set();
+let expandedCategory = null;
 
 const renderExpenses = () => {
   categoryList.innerHTML = "";
@@ -228,7 +227,7 @@ const renderExpenses = () => {
     header.className = "category-header";
     header.setAttribute("role", "button");
     header.setAttribute("tabindex", "0");
-    header.setAttribute("aria-expanded", expandedCategories.has(category));
+    header.setAttribute("aria-expanded", expandedCategory === category);
 
     const title = document.createElement("strong");
     title.textContent = category;
@@ -244,7 +243,7 @@ const renderExpenses = () => {
 
     const details = document.createElement("div");
     details.className = "category-expenses";
-    details.hidden = !expandedCategories.has(category);
+    details.hidden = expandedCategory !== category;
 
     categoryExpenses.forEach((expense) => {
       const expenseRow = document.createElement("div");
@@ -285,15 +284,8 @@ const renderExpenses = () => {
     });
 
     header.addEventListener("click", () => {
-      if (expandedCategories.has(category)) {
-        expandedCategories.delete(category);
-        details.hidden = true;
-        header.setAttribute("aria-expanded", "false");
-      } else {
-        expandedCategories.add(category);
-        details.hidden = false;
-        header.setAttribute("aria-expanded", "true");
-      }
+      expandedCategory = expandedCategory === category ? null : category;
+      renderExpenses();
     });
 
     header.addEventListener("keydown", (event) => {
