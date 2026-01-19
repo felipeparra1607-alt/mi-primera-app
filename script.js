@@ -14,14 +14,13 @@ const categoryInput = document.getElementById("categoryInput");
 const dateInput = document.getElementById("dateInput");
 const yearSelect = document.getElementById("yearSelect");
 const monthSelect = document.getElementById("monthSelect");
-const expenseItems = document.getElementById("expenseItems");
+const yearlyBars = document.getElementById("yearlyBars");
+const categoryList = document.getElementById("categoryList");
 const monthlyTotal = document.getElementById("monthlyTotal");
 const formMessage = document.getElementById("formMessage");
 const tabButtons = document.querySelectorAll(".tab-button");
 const addView = document.getElementById("addView");
 const viewExpenses = document.getElementById("viewExpenses");
-const categorySummary = document.getElementById("categorySummary");
-const chartFills = document.querySelectorAll(".chart-fill");
 
 let expenses = [];
 
@@ -120,43 +119,53 @@ const getCategoryTotals = () => {
   return totals;
 };
 
-const renderCategorySummary = () => {
-  const totals = getCategoryTotals();
-  const totalAmount = Object.values(totals).reduce(
-    (sum, value) => sum + value,
-    0
+const getExpensesForYear = (year) =>
+  expenses.filter(
+    (expense) => typeof expense.date === "string" && expense.date.startsWith(year)
   );
 
-  categorySummary.innerHTML = "";
+const renderYearlyChart = () => {
+  const year = yearSelect.value || currentYear;
+  const yearExpenses = getExpensesForYear(year);
+  const totalsByMonth = Array.from({ length: 12 }, () => 0);
 
-  CATEGORIES.forEach((category) => {
-    const amount = totals[category];
-    const percentage = totalAmount > 0 ? (amount / totalAmount) * 100 : 0;
+  yearExpenses.forEach((expense) => {
+    const monthIndex = Number(expense.date.slice(5, 7)) - 1;
+    if (monthIndex >= 0 && monthIndex < 12) {
+      totalsByMonth[monthIndex] += expense.amount;
+    }
+  });
 
-    const card = document.createElement("div");
-    card.className = "category-card";
+  const maxValue = Math.max(...totalsByMonth, 0);
+  yearlyBars.innerHTML = "";
+
+  totalsByMonth.forEach((value, index) => {
+    const bar = document.createElement("button");
+    bar.type = "button";
+    bar.className = "yearly-bar";
+    if (Number(monthSelect.value) === index) {
+      bar.classList.add("is-active");
+    }
+
+    const fill = document.createElement("span");
+    fill.className = "yearly-bar__fill";
+    fill.style.height = `${maxValue > 0 ? (value / maxValue) * 100 : 0}%`;
 
     const label = document.createElement("span");
-    label.textContent = category;
+    label.className = "yearly-bar__value";
+    label.textContent = value > 0 ? `${Math.round(value)}€` : "0€";
 
-    const value = document.createElement("strong");
-    value.textContent = `${formatCurrency(amount)} · ${percentage.toFixed(0)}%`;
+    bar.appendChild(fill);
+    bar.appendChild(label);
+    bar.addEventListener("click", () => {
+      monthSelect.value = index.toString();
+      selectedMonthKey = buildMonthKey(year, index);
+      renderExpenses();
+      updateTotal();
+      updateAnalytics();
+    });
 
-    card.appendChild(label);
-    card.appendChild(value);
-    categorySummary.appendChild(card);
-  });
-};
-
-const renderChart = () => {
-  const totals = getCategoryTotals();
-  const maxValue = Math.max(...Object.values(totals), 0);
-
-  chartFills.forEach((bar) => {
-    const category = bar.dataset.category;
-    const value = totals[category] ?? 0;
-    const width = maxValue > 0 ? (value / maxValue) * 100 : 0;
-    bar.style.width = `${width}%`;
+    yearlyBars.appendChild(bar);
   });
 };
 
@@ -184,63 +193,124 @@ const saveExpenses = () => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
 };
 
+const expandedCategories = new Set();
+
 const renderExpenses = () => {
-  expenseItems.innerHTML = "";
+  categoryList.innerHTML = "";
   const filteredExpenses = getFilteredExpenses();
 
   if (filteredExpenses.length === 0) {
-    const emptyMessage = document.createElement("li");
-    emptyMessage.className = "expense-item";
+    const emptyMessage = document.createElement("div");
+    emptyMessage.className = "category-item";
     emptyMessage.textContent =
       "No hay gastos en este mes. ¡Agrega el primero!";
-    expenseItems.appendChild(emptyMessage);
+    categoryList.appendChild(emptyMessage);
     return;
   }
 
-  filteredExpenses.forEach((expense) => {
-    const item = document.createElement("li");
-    item.className = "expense-item";
+  const totals = getCategoryTotals();
+  const totalAmount = Object.values(totals).reduce(
+    (sum, value) => sum + value,
+    0
+  );
 
-    const info = document.createElement("div");
-    info.className = "expense-info";
+  CATEGORIES.forEach((category) => {
+    const categoryExpenses = filteredExpenses.filter(
+      (expense) => expense.category === category
+    );
+    const amount = totals[category];
+    const percentage = totalAmount > 0 ? (amount / totalAmount) * 100 : 0;
+
+    const item = document.createElement("div");
+    item.className = "category-item";
+
+    const header = document.createElement("div");
+    header.className = "category-header";
+    header.setAttribute("role", "button");
+    header.setAttribute("tabindex", "0");
+    header.setAttribute("aria-expanded", expandedCategories.has(category));
 
     const title = document.createElement("strong");
-    title.textContent = expense.concept;
+    title.textContent = category;
 
-    const meta = document.createElement("span");
-    meta.className = "expense-meta";
-    meta.textContent = `${expense.category} · ${expense.date}`;
+    const subtitle = document.createElement("span");
+    subtitle.textContent = `${formatCurrency(amount)} · ${percentage.toFixed(
+      0
+    )}%`;
 
-    info.appendChild(title);
-    info.appendChild(meta);
+    header.appendChild(title);
+    header.appendChild(subtitle);
+    item.appendChild(header);
 
-    const amount = document.createElement("div");
-    amount.className = "expense-amount";
-    amount.textContent = formatCurrency(expense.amount);
+    const details = document.createElement("div");
+    details.className = "category-expenses";
+    details.hidden = !expandedCategories.has(category);
 
-    const deleteButton = document.createElement("button");
-    deleteButton.className = "delete-button";
-    deleteButton.textContent = "Eliminar";
-    deleteButton.addEventListener("click", () => {
-      expenses = expenses.filter((item) => item.id !== expense.id);
-      saveExpenses();
-      renderExpenses();
-      updateTotal();
-      updateAnalytics();
+    categoryExpenses.forEach((expense) => {
+      const expenseRow = document.createElement("div");
+      expenseRow.className = "category-expense";
+
+      const expenseHeader = document.createElement("div");
+      expenseHeader.className = "category-expense-header";
+
+      const concept = document.createElement("span");
+      concept.textContent = expense.concept;
+
+      const amountText = document.createElement("span");
+      amountText.textContent = formatCurrency(expense.amount);
+
+      expenseHeader.appendChild(concept);
+      expenseHeader.appendChild(amountText);
+
+      const meta = document.createElement("div");
+      meta.className = "category-expense-meta";
+      meta.textContent = expense.date;
+
+      const deleteButton = document.createElement("button");
+      deleteButton.className = "delete-button";
+      deleteButton.textContent = "Eliminar";
+      deleteButton.addEventListener("click", () => {
+        expenses = expenses.filter((item) => item.id !== expense.id);
+        saveExpenses();
+        buildYearOptions();
+        renderExpenses();
+        updateTotal();
+        updateAnalytics();
+      });
+
+      expenseRow.appendChild(expenseHeader);
+      expenseRow.appendChild(meta);
+      expenseRow.appendChild(deleteButton);
+      details.appendChild(expenseRow);
     });
 
-    item.appendChild(info);
-    item.appendChild(amount);
-    item.appendChild(deleteButton);
+    header.addEventListener("click", () => {
+      if (expandedCategories.has(category)) {
+        expandedCategories.delete(category);
+        details.hidden = true;
+        header.setAttribute("aria-expanded", "false");
+      } else {
+        expandedCategories.add(category);
+        details.hidden = false;
+        header.setAttribute("aria-expanded", "true");
+      }
+    });
 
-    expenseItems.appendChild(item);
+    header.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        header.click();
+      }
+    });
+
+    item.appendChild(details);
+    categoryList.appendChild(item);
   });
 };
 
-// Actualiza el resumen y el gráfico según el periodo visible.
+// Actualiza el resumen anual y la lista por categorías según filtros.
 const updateAnalytics = () => {
-  renderCategorySummary();
-  renderChart();
+  renderYearlyChart();
 };
 
 const showMessage = (text, type = "error") => {

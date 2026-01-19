@@ -78,6 +78,23 @@
 
       <section class="expense-list section" id="viewExpenses" hidden>
         <h2>Ver gastos</h2>
+        <div class="yearly-chart" aria-label="Gráfico anual por mes">
+          <div class="yearly-chart__labels">
+            <span>Ene</span>
+            <span>Feb</span>
+            <span>Mar</span>
+            <span>Abr</span>
+            <span>May</span>
+            <span>Jun</span>
+            <span>Jul</span>
+            <span>Ago</span>
+            <span>Sep</span>
+            <span>Oct</span>
+            <span>Nov</span>
+            <span>Dic</span>
+          </div>
+          <div class="yearly-chart__bars" id="yearlyBars"></div>
+        </div>
         <div class="filters">
           <label class="field">
             <span>Año</span>
@@ -91,37 +108,9 @@
 
         <div class="summary">
           <div class="total" id="monthlyTotal">Total (---- - --): €0.00</div>
-          <div class="category-summary" id="categorySummary"></div>
         </div>
 
-        <div class="chart" aria-label="Gráfico de gastos por categoría">
-          <div class="chart-row">
-            <span>Comida</span>
-            <div class="chart-bar">
-              <span data-category="Comida" class="chart-fill"></span>
-            </div>
-          </div>
-          <div class="chart-row">
-            <span>Ocio</span>
-            <div class="chart-bar">
-              <span data-category="Ocio" class="chart-fill"></span>
-            </div>
-          </div>
-          <div class="chart-row">
-            <span>Transporte</span>
-            <div class="chart-bar">
-              <span data-category="Transporte" class="chart-fill"></span>
-            </div>
-          </div>
-          <div class="chart-row">
-            <span>Otros</span>
-            <div class="chart-bar">
-              <span data-category="Otros" class="chart-fill"></span>
-            </div>
-          </div>
-        </div>
-
-        <ul id="expenseItems" class="expense-items"></ul>
+        <div class="category-list" id="categoryList"></div>
       </section>
     </main>
 
