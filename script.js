@@ -12,7 +12,8 @@ const conceptInput = document.getElementById("conceptInput");
 const amountInput = document.getElementById("amountInput");
 const categoryInput = document.getElementById("categoryInput");
 const dateInput = document.getElementById("dateInput");
-const monthInput = document.getElementById("monthInput");
+const yearSelect = document.getElementById("yearSelect");
+const monthSelect = document.getElementById("monthSelect");
 const expenseItems = document.getElementById("expenseItems");
 const monthlyTotal = document.getElementById("monthlyTotal");
 const formMessage = document.getElementById("formMessage");
@@ -21,7 +22,25 @@ let expenses = [];
 
 const today = new Date();
 const currentMonthKey = today.toISOString().slice(0, 7);
+const currentYear = today.getFullYear().toString();
+const currentMonthIndex = today.getMonth();
 let selectedMonthKey = currentMonthKey;
+
+// Lista de meses en español para el selector y el texto del total.
+const MONTHS = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat("es-ES", {
@@ -29,12 +48,57 @@ const formatCurrency = (value) =>
     currency: "EUR",
   }).format(value);
 
-const getSelectedMonthKey = () => {
-  if (!selectedMonthKey) {
-    selectedMonthKey = currentMonthKey;
-  }
+const getSelectedMonthKey = () => selectedMonthKey || currentMonthKey;
 
-  return selectedMonthKey;
+const buildMonthKey = (year, monthIndex) =>
+  `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+
+const getActivePeriodLabel = () => {
+  const [year, month] = getSelectedMonthKey().split("-");
+  const monthIndex = Math.max(0, Number(month) - 1);
+  const monthName = MONTHS[monthIndex] ?? "Mes";
+
+  return `${year} - ${monthName}`;
+};
+
+const buildMonthOptions = () => {
+  monthSelect.innerHTML = "";
+  MONTHS.forEach((monthName, index) => {
+    const option = document.createElement("option");
+    option.value = index.toString();
+    option.textContent = monthName;
+    monthSelect.appendChild(option);
+  });
+};
+
+const buildYearOptions = () => {
+  const years = new Set([currentYear]);
+  expenses.forEach((expense) => {
+    if (typeof expense.date === "string") {
+      years.add(expense.date.slice(0, 4));
+    }
+  });
+
+  const sortedYears = Array.from(years).sort();
+  const currentSelection = yearSelect.value || currentYear;
+
+  yearSelect.innerHTML = "";
+  sortedYears.forEach((year) => {
+    const option = document.createElement("option");
+    option.value = year;
+    option.textContent = year;
+    yearSelect.appendChild(option);
+  });
+
+  yearSelect.value = sortedYears.includes(currentSelection)
+    ? currentSelection
+    : currentYear;
+
+  // Sincroniza el filtro actual si el año disponible cambió.
+  selectedMonthKey = buildMonthKey(
+    yearSelect.value || currentYear,
+    Number(monthSelect.value || 0)
+  );
 };
 
 const getFilteredExpenses = () => {
@@ -52,9 +116,7 @@ const updateTotal = () => {
     0
   );
 
-  const activeMonth = getSelectedMonthKey();
-
-  monthlyTotal.textContent = `Total del mes (${activeMonth}): ${formatCurrency(
+  monthlyTotal.textContent = `Total (${getActivePeriodLabel()}): ${formatCurrency(
     total
   )}`;
 };
@@ -158,6 +220,7 @@ const addExpense = (event) => {
 
   expenses = [newExpense, ...expenses];
   saveExpenses();
+  buildYearOptions();
   renderExpenses();
   updateTotal();
 
@@ -169,19 +232,34 @@ const addExpense = (event) => {
 const loadExpenses = () => {
   const storedData = localStorage.getItem(STORAGE_KEY);
   expenses = storedData ? JSON.parse(storedData) : [];
+  buildYearOptions();
   renderExpenses();
   updateTotal();
 };
 
 expenseForm.addEventListener("submit", addExpense);
-monthInput.addEventListener("change", () => {
-  selectedMonthKey = monthInput.value || currentMonthKey;
+yearSelect.addEventListener("change", () => {
+  selectedMonthKey = buildMonthKey(
+    yearSelect.value || currentYear,
+    Number(monthSelect.value || 0)
+  );
+  renderExpenses();
+  updateTotal();
+});
+
+monthSelect.addEventListener("change", () => {
+  selectedMonthKey = buildMonthKey(
+    yearSelect.value || currentYear,
+    Number(monthSelect.value || 0)
+  );
   renderExpenses();
   updateTotal();
 });
 
 dateInput.value = today.toISOString().slice(0, 10);
-monthInput.value = currentMonthKey;
-
-dateInput.value = today.toISOString().slice(0, 10);
+buildMonthOptions();
+buildYearOptions();
+monthSelect.value = currentMonthIndex.toString();
+yearSelect.value = currentYear;
+selectedMonthKey = buildMonthKey(currentYear, currentMonthIndex);
 loadExpenses();

@@ -53,20 +53,15 @@ body {
   color: var(--muted);
 }
 
-.month-picker {
-  margin-top: 16px;
+/* Secciones claras para Añadir / Ver gastos. */
+.section {
   display: grid;
-  gap: 6px;
-  font-weight: 600;
-  color: #111827;
+  gap: 16px;
 }
 
-.month-picker span {
-  font-size: 0.95rem;
-}
-
-.month-picker input {
-  width: 100%;
+.section h2 {
+  margin: 0;
+  font-size: 1.35rem;
 }
 
 .total {
@@ -143,9 +138,11 @@ select:focus {
   gap: 12px;
 }
 
-.expense-list h2 {
-  margin: 0;
-  font-size: 1.3rem;
+/* Filtros del periodo visible. */
+.filters {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .expense-items {
@@ -204,6 +201,11 @@ select:focus {
   .card {
     padding: 24px;
     width: 100%;
+  }
+
+  /* En móvil, filtros uno debajo del otro. */
+  .filters {
+    grid-template-columns: 1fr;
   }
 
   .expense-item {
