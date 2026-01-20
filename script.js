@@ -17,11 +17,17 @@ const increaseAmount = document.getElementById("increaseAmount");
 const categoryGrid = document.getElementById("categoryGrid");
 const dateDisplay = document.getElementById("dateDisplay");
 const dateModal = document.getElementById("dateModal");
-const modalDateInput = document.getElementById("modalDateInput");
 const shortcutToday = document.getElementById("shortcutToday");
 const shortcutYesterday = document.getElementById("shortcutYesterday");
-const shortcutCustom = document.getElementById("shortcutCustom");
 const closeDateModal = document.getElementById("closeDateModal");
+const submitExpense = document.getElementById("submitExpense");
+const currencyButton = document.getElementById("currencyButton");
+const currencyModal = document.getElementById("currencyModal");
+const currencyOptions = document.getElementById("currencyOptions");
+const closeCurrencyModal = document.getElementById("closeCurrencyModal");
+const daySelect = document.getElementById("daySelect");
+const monthSelectInput = document.getElementById("monthSelectInput");
+const yearSelectInput = document.getElementById("yearSelectInput");
 const yearSelect = document.getElementById("yearSelect");
 const monthSelect = document.getElementById("monthSelect");
 const yearlyBars = document.getElementById("yearlyBars");
@@ -56,13 +62,35 @@ const MONTHS = [
   "Diciembre",
 ];
 
-const CATEGORIES = ["Comida", "Ocio", "Transporte", "Otros"];
+const CATEGORIES = [
+  "Restaurantes",
+  "Supermercado",
+  "Transporte",
+  "Gasolina",
+  "Ocio",
+  "Otros",
+];
+
+const CURRENCIES = ["EUR €", "USD $", "GBP £", "COP $", "MXN $"];
+let selectedCurrency = CURRENCIES[0];
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat("es-ES", {
     style: "currency",
     currency: "EUR",
   }).format(value);
+
+const parseAmount = (value) => {
+  const normalized = value.replace(/\./g, "").replace(",", ".");
+  const parsed = parseFloat(normalized);
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+const formatAmountInput = (value) =>
+  value.toLocaleString("es-ES", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 const formatDateLabel = (dateValue) => {
   if (!dateValue) {
@@ -358,9 +386,9 @@ const updateAnalytics = () => {
 // Mensaje con feedback visual al guardar.
 const showMessage = (text, type = "error") => {
   formMessage.textContent = text;
-  formMessage.classList.remove("is-success", "is-hidden");
+  formMessage.classList.remove("is-success", "is-hidden", "toast");
   if (type === "success") {
-    formMessage.classList.add("is-success");
+    formMessage.classList.add("is-success", "toast");
     setTimeout(() => {
       formMessage.classList.add("is-hidden");
     }, 1500);
@@ -379,7 +407,7 @@ const addExpense = (event) => {
   clearMessage();
 
   const concept = conceptInput.value.trim();
-  const amount = parseFloat(amountInput.value);
+  const amount = parseAmount(amountInput.value);
   const category = categoryInput.value;
   const date = dateInput.value;
 
@@ -414,11 +442,12 @@ const addExpense = (event) => {
   updateAnalytics();
 
   expenseForm.reset();
-  amountInput.value = "0.00";
+  amountInput.value = formatAmountInput(0);
   dateInput.value = today.toISOString().slice(0, 10);
   dateDisplay.textContent = formatDateLabel(dateInput.value);
   categoryInput.value = CATEGORIES[0];
   updateCategorySelection();
+  updateSubmitState();
   showMessage("Gasto guardado correctamente.", "success");
 };
 
@@ -446,22 +475,24 @@ const setActiveView = (view) => {
 
 // Botones + y - del contador de cantidad.
 const updateAmount = (delta) => {
-  const current = parseFloat(amountInput.value) || 0;
+  const current = parseAmount(amountInput.value);
   const nextValue = Math.max(0, current + delta);
-  amountInput.value = nextValue.toFixed(2);
+  amountInput.value = formatAmountInput(nextValue);
+  updateSubmitState();
 };
 
 // Marca visualmente la categoría activa.
 const updateCategorySelection = () => {
   const selected = categoryInput.value;
-  categoryGrid.querySelectorAll(".category-card").forEach((button) => {
-    button.classList.toggle("is-selected", button.dataset.category === selected);
+  categoryGrid.querySelectorAll(".category-card").forEach((card) => {
+    card.classList.toggle("is-selected", card.dataset.category === selected);
   });
+  categoryGrid.classList.toggle("is-dimmed", Boolean(selected));
 };
 
 // Modal simple para elegir fecha.
 const openDateModal = () => {
-  modalDateInput.value = dateInput.value;
+  syncDateSelectors();
   dateModal.classList.add("is-open");
   dateModal.setAttribute("aria-hidden", "false");
 };
@@ -469,6 +500,82 @@ const openDateModal = () => {
 const closeModal = () => {
   dateModal.classList.remove("is-open");
   dateModal.setAttribute("aria-hidden", "true");
+};
+
+const openCurrencyModal = () => {
+  currencyModal.classList.add("is-open");
+  currencyModal.setAttribute("aria-hidden", "false");
+};
+
+const closeCurrency = () => {
+  currencyModal.classList.remove("is-open");
+  currencyModal.setAttribute("aria-hidden", "true");
+};
+
+const buildCurrencyOptions = () => {
+  currencyOptions.innerHTML = "";
+  CURRENCIES.forEach((currency) => {
+    const option = document.createElement("button");
+    option.type = "button";
+    option.className = "currency-option";
+    option.textContent = currency;
+    option.classList.toggle("is-selected", currency === selectedCurrency);
+    option.addEventListener("click", () => {
+      selectedCurrency = currency;
+      currencyButton.textContent = currency;
+      buildCurrencyOptions();
+    });
+    currencyOptions.appendChild(option);
+  });
+};
+
+const buildDateSelectors = () => {
+  daySelect.innerHTML = "";
+  for (let day = 1; day <= 31; day += 1) {
+    const option = document.createElement("option");
+    option.value = String(day).padStart(2, "0");
+    option.textContent = day;
+    daySelect.appendChild(option);
+  }
+
+  monthSelectInput.innerHTML = "";
+  MONTHS.forEach((monthName, index) => {
+    const option = document.createElement("option");
+    option.value = String(index + 1).padStart(2, "0");
+    option.textContent = monthName.slice(0, 3);
+    monthSelectInput.appendChild(option);
+  });
+
+  yearSelectInput.innerHTML = "";
+  const currentYearNumber = Number(currentYear);
+  for (let year = currentYearNumber - 5; year <= currentYearNumber + 1; year += 1) {
+    const option = document.createElement("option");
+    option.value = String(year);
+    option.textContent = String(year);
+    yearSelectInput.appendChild(option);
+  }
+};
+
+const syncDateSelectors = () => {
+  const [year, month, day] = dateInput.value.split("-");
+  daySelect.value = day;
+  monthSelectInput.value = month;
+  yearSelectInput.value = year;
+};
+
+const applyDateFromSelectors = () => {
+  const nextDate = `${yearSelectInput.value}-${monthSelectInput.value}-${daySelect.value}`;
+  dateInput.value = nextDate;
+  dateDisplay.textContent = formatDateLabel(dateInput.value);
+  syncDateSelectors();
+};
+
+const updateSubmitState = () => {
+  const hasConcept = conceptInput.value.trim().length > 0;
+  const amountValue = parseAmount(amountInput.value);
+  const isReady = hasConcept && amountValue > 0;
+  submitExpense.classList.toggle("is-disabled", !isReady);
+  submitExpense.setAttribute("aria-disabled", String(!isReady));
 };
 
 expenseForm.addEventListener("submit", addExpense);
@@ -481,43 +588,45 @@ tabButtons.forEach((button) => {
 decreaseAmount.addEventListener("click", () => updateAmount(-1));
 increaseAmount.addEventListener("click", () => updateAmount(1));
 amountInput.addEventListener("input", () => {
-  if (parseFloat(amountInput.value) < 0) {
-    amountInput.value = "0.00";
+  const amountValue = parseAmount(amountInput.value);
+  if (amountValue < 0) {
+    amountInput.value = formatAmountInput(0);
   }
+  updateSubmitState();
 });
 
 categoryGrid.addEventListener("click", (event) => {
-  const target = event.target.closest(".category-card");
-  if (!target) {
+  const emojiButton = event.target.closest(".cat-emoji");
+  if (!emojiButton) {
     return;
   }
+  const target = emojiButton.closest(".category-card");
   categoryInput.value = target.dataset.category;
   updateCategorySelection();
+  updateSubmitState();
 });
 
 dateDisplay.addEventListener("click", openDateModal);
 closeDateModal.addEventListener("click", () => {
-  if (modalDateInput.value) {
-    dateInput.value = modalDateInput.value;
-    dateDisplay.textContent = formatDateLabel(dateInput.value);
-  }
+  applyDateFromSelectors();
   closeModal();
+});
+
+conceptInput.addEventListener("input", updateSubmitState);
+amountInput.addEventListener("blur", () => {
+  amountInput.value = formatAmountInput(parseAmount(amountInput.value));
 });
 
 shortcutToday.addEventListener("click", () => {
   dateInput.value = today.toISOString().slice(0, 10);
-  modalDateInput.value = dateInput.value;
+  syncDateSelectors();
 });
 
 shortcutYesterday.addEventListener("click", () => {
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
   dateInput.value = yesterday.toISOString().slice(0, 10);
-  modalDateInput.value = dateInput.value;
-});
-
-shortcutCustom.addEventListener("click", () => {
-  modalDateInput.focus();
+  syncDateSelectors();
 });
 
 dateModal.addEventListener("click", (event) => {
@@ -525,6 +634,18 @@ dateModal.addEventListener("click", (event) => {
     closeModal();
   }
 });
+
+currencyButton.addEventListener("click", openCurrencyModal);
+closeCurrencyModal.addEventListener("click", closeCurrency);
+currencyModal.addEventListener("click", (event) => {
+  if (event.target === currencyModal) {
+    closeCurrency();
+  }
+});
+
+daySelect.addEventListener("change", applyDateFromSelectors);
+monthSelectInput.addEventListener("change", applyDateFromSelectors);
+yearSelectInput.addEventListener("change", applyDateFromSelectors);
 
 yearSelect.addEventListener("change", () => {
   selectedMonthKey = buildMonthKey(
@@ -548,8 +669,14 @@ monthSelect.addEventListener("change", () => {
 
 dateInput.value = today.toISOString().slice(0, 10);
 dateDisplay.textContent = formatDateLabel(dateInput.value);
+amountInput.value = formatAmountInput(0);
 categoryInput.value = CATEGORIES[0];
 updateCategorySelection();
+updateSubmitState();
+buildDateSelectors();
+syncDateSelectors();
+buildCurrencyOptions();
+currencyButton.textContent = selectedCurrency;
 buildMonthOptions();
 buildYearOptions();
 monthSelect.value = currentMonthIndex.toString();

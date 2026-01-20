@@ -13,11 +13,8 @@
   </head>
   <body>
     <main class="card">
-      <header class="card__header">
-        <h1>Control de Gastos</h1>
-        <p class="subtitle">
-          Aprende registrando tus gastos diarios de forma simple.
-        </p>
+      <header class="card__header brand">
+        <h1 class="title">Fluxo</h1>
       </header>
 
       <nav class="tabs" aria-label="Cambiar vista">
@@ -38,7 +35,7 @@
               type="text"
               id="conceptInput"
               name="concept"
-              placeholder="Ej: Supermercado"
+              placeholder="EJ: SUPERMERCADO"
               required
             />
           </label>
@@ -51,16 +48,18 @@
                 −
               </button>
               <input
-                type="number"
+                type="text"
                 id="amountInput"
                 name="amount"
-                min="0.01"
-                step="0.01"
-                value="0.00"
+                inputmode="decimal"
+                value="0,00"
                 required
               />
               <button type="button" class="counter__button" id="increaseAmount">
                 +
+              </button>
+              <button type="button" class="currency-pill" id="currencyButton">
+                EUR €
               </button>
             </div>
           </label>
@@ -69,31 +68,37 @@
             <span>Categoría</span>
             <!-- Grid de categorías con selección visual. -->
             <div class="category-grid" id="categoryGrid">
-              <button type="button" class="category-card" data-category="Comida">
-                <span class="category-card__icon">🍽️</span>
-                <span>Comida</span>
-              </button>
-              <button
-                type="button"
-                class="category-card"
-                data-category="Transporte"
-              >
-                <span class="category-card__icon">🚗</span>
+              <div class="category-card" data-category="Restaurantes">
+                <button type="button" class="cat-emoji">🍽️</button>
+                <span>Restaurantes</span>
+              </div>
+              <div class="category-card" data-category="Supermercado">
+                <button type="button" class="cat-emoji">🛒</button>
+                <span>Supermercado</span>
+              </div>
+              <div class="category-card" data-category="Transporte">
+                <button type="button" class="cat-emoji">🚗</button>
                 <span>Transporte</span>
-              </button>
-              <button type="button" class="category-card" data-category="Ocio">
-                <span class="category-card__icon">🎉</span>
+              </div>
+              <div class="category-card" data-category="Gasolina">
+                <button type="button" class="cat-emoji">⛽</button>
+                <span>Gasolina</span>
+              </div>
+              <div class="category-card" data-category="Ocio">
+                <button type="button" class="cat-emoji">🎉</button>
                 <span>Ocio</span>
-              </button>
-              <button type="button" class="category-card" data-category="Otros">
-                <span class="category-card__icon">✨</span>
+              </div>
+              <div class="category-card" data-category="Otros">
+                <button type="button" class="cat-emoji">✨</button>
                 <span>Otros</span>
-              </button>
+              </div>
             </div>
             <!-- Mantenemos el select para la lógica actual. -->
             <select id="categoryInput" name="category" class="visually-hidden">
-              <option value="Comida">Comida</option>
+              <option value="Restaurantes">Restaurantes</option>
+              <option value="Supermercado">Supermercado</option>
               <option value="Transporte">Transporte</option>
+              <option value="Gasolina">Gasolina</option>
               <option value="Ocio">Ocio</option>
               <option value="Otros">Otros</option>
             </select>
@@ -115,21 +120,35 @@
                 <button type="button" class="chip" id="shortcutYesterday">
                   Ayer
                 </button>
-                <button type="button" class="chip" id="shortcutCustom">
-                  Otro día
-                </button>
               </div>
-              <input type="date" id="modalDateInput" />
+              <div class="date-picker">
+                <select id="daySelect" class="date-part"></select>
+                <select id="monthSelectInput" class="date-part"></select>
+                <select id="yearSelectInput" class="date-part"></select>
+              </div>
               <button type="button" class="primary-button" id="closeDateModal">
                 Listo
               </button>
             </div>
           </div>
 
-          <button type="submit" class="primary-button">Añadir gasto</button>
+          <button type="submit" class="primary-button" id="submitExpense">
+            Añadir gasto
+          </button>
           <p class="helper" id="formMessage" aria-live="polite"></p>
         </form>
       </section>
+
+      <!-- Modal simple para seleccionar divisa (solo visual). -->
+      <div class="modal" id="currencyModal" aria-hidden="true">
+        <div class="modal__content" role="dialog" aria-modal="true">
+          <h3>Selecciona divisa</h3>
+          <div class="currency-grid" id="currencyOptions"></div>
+          <button type="button" class="primary-button" id="closeCurrencyModal">
+            Listo
+          </button>
+        </div>
+      </div>
 
       <section class="expense-list section" id="viewExpenses" hidden>
         <h2>Ver gastos</h2>
