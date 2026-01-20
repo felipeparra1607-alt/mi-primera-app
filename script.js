@@ -415,6 +415,48 @@ const addExpense = (event) => {
     showMessage("El concepto es obligatorio.");
     return;
   }
+  const target = emojiButton.closest(".category-card");
+  categoryInput.value = target.dataset.category;
+  updateCategorySelection();
+  updateSubmitState();
+});
+
+dateDisplay.addEventListener("click", openDateModal);
+closeDateModal.addEventListener("click", () => {
+  applyDateFromSelectors();
+  closeModal();
+});
+
+conceptInput.addEventListener("input", updateSubmitState);
+amountInput.addEventListener("blur", () => {
+  amountInput.value = formatAmountInput(parseAmount(amountInput.value));
+});
+
+shortcutToday.addEventListener("click", () => {
+  dateInput.value = today.toISOString().slice(0, 10);
+  syncDateSelectors();
+});
+
+shortcutYesterday.addEventListener("click", () => {
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  dateInput.value = yesterday.toISOString().slice(0, 10);
+  syncDateSelectors();
+});
+
+dateModal.addEventListener("click", (event) => {
+  if (event.target === dateModal) {
+    closeModal();
+  }
+});
+
+currencyButton.addEventListener("click", openCurrencyModal);
+closeCurrencyModal.addEventListener("click", closeCurrency);
+currencyModal.addEventListener("click", (event) => {
+  if (event.target === currencyModal) {
+    closeCurrency();
+  }
+});
 
   if (Number.isNaN(amount) || amount <= 0) {
     showMessage("La cantidad debe ser mayor que 0.");
