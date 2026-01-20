@@ -12,6 +12,16 @@ const conceptInput = document.getElementById("conceptInput");
 const amountInput = document.getElementById("amountInput");
 const categoryInput = document.getElementById("categoryInput");
 const dateInput = document.getElementById("dateInput");
+const decreaseAmount = document.getElementById("decreaseAmount");
+const increaseAmount = document.getElementById("increaseAmount");
+const categoryGrid = document.getElementById("categoryGrid");
+const dateDisplay = document.getElementById("dateDisplay");
+const dateModal = document.getElementById("dateModal");
+const modalDateInput = document.getElementById("modalDateInput");
+const shortcutToday = document.getElementById("shortcutToday");
+const shortcutYesterday = document.getElementById("shortcutYesterday");
+const shortcutCustom = document.getElementById("shortcutCustom");
+const closeDateModal = document.getElementById("closeDateModal");
 const yearSelect = document.getElementById("yearSelect");
 const monthSelect = document.getElementById("monthSelect");
 const yearlyBars = document.getElementById("yearlyBars");
@@ -53,6 +63,36 @@ const formatCurrency = (value) =>
     style: "currency",
     currency: "EUR",
   }).format(value);
+
+const formatDateLabel = (dateValue) => {
+  if (!dateValue) {
+    return "Selecciona una fecha";
+  }
+
+  const parsed = new Date(`${dateValue}T00:00:00`);
+  const todayDate = new Date();
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(todayDate.getDate() - 1);
+
+  const sameDay = (a, b) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+
+  const labelPrefix = sameDay(parsed, todayDate)
+    ? "Hoy"
+    : sameDay(parsed, yesterdayDate)
+      ? "Ayer"
+      : "Fecha";
+
+  const formatted = new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(parsed);
+
+  return `${labelPrefix} · ${formatted}`;
+};
 
 const getSelectedMonthKey = () => selectedMonthKey || currentMonthKey;
 
@@ -315,13 +355,23 @@ const updateAnalytics = () => {
   renderYearlyChart();
 };
 
+// Mensaje con feedback visual al guardar.
 const showMessage = (text, type = "error") => {
   formMessage.textContent = text;
-  formMessage.style.color = type === "success" ? "#16a34a" : "#dc2626";
+  formMessage.classList.remove("is-success", "is-hidden");
+  if (type === "success") {
+    formMessage.classList.add("is-success");
+    setTimeout(() => {
+      formMessage.classList.add("is-hidden");
+    }, 1500);
+  } else {
+    formMessage.classList.remove("is-success");
+  }
 };
 
 const clearMessage = () => {
   formMessage.textContent = "";
+  formMessage.classList.remove("is-success", "is-hidden");
 };
 
 const addExpense = (event) => {
@@ -364,7 +414,11 @@ const addExpense = (event) => {
   updateAnalytics();
 
   expenseForm.reset();
+  amountInput.value = "0.00";
   dateInput.value = today.toISOString().slice(0, 10);
+  dateDisplay.textContent = formatDateLabel(dateInput.value);
+  categoryInput.value = CATEGORIES[0];
+  updateCategorySelection();
   showMessage("Gasto guardado correctamente.", "success");
 };
 
@@ -390,11 +444,86 @@ const setActiveView = (view) => {
   });
 };
 
+// Botones + y - del contador de cantidad.
+const updateAmount = (delta) => {
+  const current = parseFloat(amountInput.value) || 0;
+  const nextValue = Math.max(0, current + delta);
+  amountInput.value = nextValue.toFixed(2);
+};
+
+// Marca visualmente la categoría activa.
+const updateCategorySelection = () => {
+  const selected = categoryInput.value;
+  categoryGrid.querySelectorAll(".category-card").forEach((button) => {
+    button.classList.toggle("is-selected", button.dataset.category === selected);
+  });
+};
+
+// Modal simple para elegir fecha.
+const openDateModal = () => {
+  modalDateInput.value = dateInput.value;
+  dateModal.classList.add("is-open");
+  dateModal.setAttribute("aria-hidden", "false");
+};
+
+const closeModal = () => {
+  dateModal.classList.remove("is-open");
+  dateModal.setAttribute("aria-hidden", "true");
+};
+
 expenseForm.addEventListener("submit", addExpense);
 tabButtons.forEach((button) => {
   button.addEventListener("click", () => {
     setActiveView(button.dataset.view);
   });
+});
+
+decreaseAmount.addEventListener("click", () => updateAmount(-1));
+increaseAmount.addEventListener("click", () => updateAmount(1));
+amountInput.addEventListener("input", () => {
+  if (parseFloat(amountInput.value) < 0) {
+    amountInput.value = "0.00";
+  }
+});
+
+categoryGrid.addEventListener("click", (event) => {
+  const target = event.target.closest(".category-card");
+  if (!target) {
+    return;
+  }
+  categoryInput.value = target.dataset.category;
+  updateCategorySelection();
+});
+
+dateDisplay.addEventListener("click", openDateModal);
+closeDateModal.addEventListener("click", () => {
+  if (modalDateInput.value) {
+    dateInput.value = modalDateInput.value;
+    dateDisplay.textContent = formatDateLabel(dateInput.value);
+  }
+  closeModal();
+});
+
+shortcutToday.addEventListener("click", () => {
+  dateInput.value = today.toISOString().slice(0, 10);
+  modalDateInput.value = dateInput.value;
+});
+
+shortcutYesterday.addEventListener("click", () => {
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  dateInput.value = yesterday.toISOString().slice(0, 10);
+  modalDateInput.value = dateInput.value;
+});
+
+shortcutCustom.addEventListener("click", () => {
+  modalDateInput.focus();
+});
+
+dateModal.addEventListener("click", (event) => {
+  if (event.target === dateModal) {
+    closeModal();
+  }
 });
 
 yearSelect.addEventListener("change", () => {
@@ -418,6 +547,9 @@ monthSelect.addEventListener("change", () => {
 });
 
 dateInput.value = today.toISOString().slice(0, 10);
+dateDisplay.textContent = formatDateLabel(dateInput.value);
+categoryInput.value = CATEGORIES[0];
+updateCategorySelection();
 buildMonthOptions();
 buildYearOptions();
 monthSelect.value = currentMonthIndex.toString();

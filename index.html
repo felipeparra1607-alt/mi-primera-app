@@ -45,31 +45,86 @@
 
           <label class="field">
             <span>Cantidad (€)</span>
-            <input
-              type="number"
-              id="amountInput"
-              name="amount"
-              min="0.01"
-              step="0.01"
-              placeholder="0.00"
-              required
-            />
+            <!-- Contador con input numérico editable. -->
+            <div class="counter">
+              <button type="button" class="counter__button" id="decreaseAmount">
+                −
+              </button>
+              <input
+                type="number"
+                id="amountInput"
+                name="amount"
+                min="0.01"
+                step="0.01"
+                value="0.00"
+                required
+              />
+              <button type="button" class="counter__button" id="increaseAmount">
+                +
+              </button>
+            </div>
           </label>
 
-          <label class="field">
+          <div class="field">
             <span>Categoría</span>
-            <select id="categoryInput" name="category">
+            <!-- Grid de categorías con selección visual. -->
+            <div class="category-grid" id="categoryGrid">
+              <button type="button" class="category-card" data-category="Comida">
+                <span class="category-card__icon">🍽️</span>
+                <span>Comida</span>
+              </button>
+              <button
+                type="button"
+                class="category-card"
+                data-category="Transporte"
+              >
+                <span class="category-card__icon">🚗</span>
+                <span>Transporte</span>
+              </button>
+              <button type="button" class="category-card" data-category="Ocio">
+                <span class="category-card__icon">🎉</span>
+                <span>Ocio</span>
+              </button>
+              <button type="button" class="category-card" data-category="Otros">
+                <span class="category-card__icon">✨</span>
+                <span>Otros</span>
+              </button>
+            </div>
+            <!-- Mantenemos el select para la lógica actual. -->
+            <select id="categoryInput" name="category" class="visually-hidden">
               <option value="Comida">Comida</option>
               <option value="Transporte">Transporte</option>
               <option value="Ocio">Ocio</option>
               <option value="Otros">Otros</option>
             </select>
-          </label>
+          </div>
 
-          <label class="field">
+          <div class="field">
             <span>Fecha</span>
-            <input type="date" id="dateInput" name="date" required />
-          </label>
+            <!-- Botón que abre el modal de fecha. -->
+            <button type="button" class="date-display" id="dateDisplay"></button>
+            <input type="date" id="dateInput" name="date" required hidden />
+          </div>
+
+          <!-- Modal de fecha simple con atajos. -->
+          <div class="modal" id="dateModal" aria-hidden="true">
+            <div class="modal__content" role="dialog" aria-modal="true">
+              <h3>Selecciona una fecha</h3>
+              <div class="modal__actions">
+                <button type="button" class="chip" id="shortcutToday">Hoy</button>
+                <button type="button" class="chip" id="shortcutYesterday">
+                  Ayer
+                </button>
+                <button type="button" class="chip" id="shortcutCustom">
+                  Otro día
+                </button>
+              </div>
+              <input type="date" id="modalDateInput" />
+              <button type="button" class="primary-button" id="closeDateModal">
+                Listo
+              </button>
+            </div>
+          </div>
 
           <button type="submit" class="primary-button">Añadir gasto</button>
           <p class="helper" id="formMessage" aria-live="polite"></p>
