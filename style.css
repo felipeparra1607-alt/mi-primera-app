@@ -232,52 +232,40 @@ select:focus,
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  border: none;
-  font-size: 34px;
+  border: 1px solid transparent;
+  font-size: 28px;
   cursor: pointer;
-  box-shadow: none;
-  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  transition: 160ms ease;
 }
 
 .cat-circle[data-color="restaurantes"] {
-  --cat-bg: #fff4e6;
-  background: var(--cat-bg);
+  background: #fff4e6;
 }
 
 .cat-circle[data-color="supermercado"] {
-  --cat-bg: #e9f7ff;
-  background: var(--cat-bg);
+  background: #e9f7ff;
 }
 
 .cat-circle[data-color="transporte"] {
-  --cat-bg: #eef2ff;
-  background: var(--cat-bg);
+  background: #eef2ff;
 }
 
 .cat-circle[data-color="gasolina"] {
-  --cat-bg: #fff1f2;
-  background: var(--cat-bg);
+  background: #fff1f2;
 }
 
 .cat-circle[data-color="ocio"] {
-  --cat-bg: #f3f0ff;
-  background: var(--cat-bg);
+  background: #f3f0ff;
 }
 
 .cat-circle[data-color="otros"] {
-  --cat-bg: #f1fff3;
-  background: var(--cat-bg);
-}
-
-.cat-circle:hover {
-  transform: scale(1.08);
-  box-shadow: 0 10px 20px rgba(31, 107, 255, 0.2);
-  background: color-mix(in srgb, var(--cat-bg) 86%, #ffffff 14%);
+  background: #f1fff3;
 }
 
 .cat-card.selected .cat-circle {
-  transform: scale(1.1);
-  box-shadow: 0 12px 24px rgba(31, 107, 255, 0.25);
+  transform: scale(1.07);
+  border-color: #1f6bff;
+  box-shadow: 0 12px 22px rgba(31, 107, 255, 0.18);
 }
 
 .cat-name {
