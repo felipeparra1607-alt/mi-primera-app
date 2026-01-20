@@ -1,74 +1,680 @@
 /*
-  ESTILOS BÁSICOS
-  Este archivo se encarga de la apariencia (colores, tamaños, espacios).
+  Hoja de estilos principal:
+  - Define la tarjeta centrada, tipografías y colores.
+  - Da formato al formulario y la lista de gastos.
 */
 
-/*
-  Aplicamos un estilo global al body.
-  font-family define la tipografía principal.
-*/
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --text: #0b1220;
+  --muted: #5b6472;
+  --border: #e6eaf2;
+  --primary: #1f6bff;
+  --primary-2: #2d3cff;
+  --shadow: 0 12px 30px rgba(16, 24, 40, 0.1);
+  --radius-lg: 22px;
+  --radius-md: 16px;
+  --radius-sm: 12px;
+  --success: #16a34a;
+  --danger: #dc2626;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
-  font-family: "Segoe UI", Tahoma, sans-serif;
-  background: #f3f4f6;
-  color: #1f2933;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial;
+  background: var(--bg);
+  color: var(--text);
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
+  padding: 24px;
 }
 
-/*
-  Un "card" es una caja con sombra.
-  Hacemos que todo el contenido tenga un ancho cómodo.
-*/
 .card {
-  background: #ffffff;
-  padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
-  width: min(420px, 90%);
+  background: var(--surface);
+  width: min(720px, 100%);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 28px;
+}
+
+.card__header.brand {
+  height: 96px;
+  border-radius: 20px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #1f6bff 0%, #2d3cff 100%);
+}
+
+.card__header .title {
+  margin: 0;
+  font-size: 42px;
+  font-weight: 800;
+  letter-spacing: -0.8px;
+  color: #fff;
+  text-shadow: 0 6px 18px rgba(8, 23, 67, 0.35);
   text-align: center;
 }
 
-/*
-  Estilos para el campo de texto y el botón.
-  "display: block" hace que ocupen una línea completa.
-*/
-input,
-button {
-  display: block;
-  width: 100%;
-  margin-top: 0.75rem;
-  padding: 0.75rem;
-  font-size: 1rem;
-  border-radius: 8px;
-  border: 1px solid #d1d5db;
+/* Barra superior con pestañas. */
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
-/*
-  Cambiamos el color del botón y quitamos el borde.
-*/
+.tab-button {
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  padding: 12px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tab-button.is-active {
+  background: #1d4ed8;
+  color: #fff;
+  border-color: #1d4ed8;
+}
+
+/* Secciones claras para Añadir / Ver gastos. */
+.section {
+  display: none;
+  gap: 16px;
+}
+
+.section.expense-list {
+  display: none;
+}
+
+.section.is-visible {
+  display: grid;
+  animation: fadeIn 0.2s ease;
+}
+
+.section.expense-list.is-visible {
+  display: grid;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.section h2 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 750;
+}
+
+.total {
+  margin-top: 18px;
+  background: #eef2ff;
+  color: #1e40af;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.expense-form {
+  display: grid;
+  gap: 16px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.field span {
+  font-size: 0.95rem;
+}
+
+#addView .field {
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-size: 14px;
+}
+
+#addView .field span {
+  font-size: 14px;
+}
+
+#conceptInput {
+  text-transform: uppercase;
+  text-align: center;
+  height: 54px;
+}
+
+input,
+select,
 button {
-  background: #2563eb;
-  color: #ffffff;
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+input,
+select {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+input:focus,
+select:focus {
+  outline: 2px solid rgba(37, 99, 235, 0.35);
+  border-color: var(--primary);
+}
+
+.primary-button {
+  background: linear-gradient(135deg, #1f6bff 0%, #2d3cff 100%);
+  color: #fff;
   border: none;
+  border-radius: var(--radius-md);
+  height: 56px;
+  padding: 12px 16px;
+  font-weight: 850;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  box-shadow: 0 14px 24px rgba(31, 107, 255, 0.25);
+}
+
+.primary-button:hover {
+  transform: translateY(-1px);
+}
+
+.primary-button.is-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.helper {
+  min-height: 20px;
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.95rem;
+  transition: opacity 0.3s ease;
+}
+
+.helper.is-success {
+  color: #fff;
+  opacity: 1;
+}
+
+.helper.is-success::before {
+  content: "✅ ";
+}
+
+.helper.is-hidden {
+  opacity: 0;
+}
+
+.helper.toast {
+  background: #0b1220;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+}
+
+/* Contador de cantidad. */
+.counter {
+  display: grid;
+  grid-template-columns: 48px 1fr 48px auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.counter__button {
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: #f3f6ff;
+  border: none;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--primary);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.counter__button:active {
+  transform: scale(0.96);
+}
+
+.counter input {
+  text-align: center;
+  font-size: 44px;
+  font-weight: 800;
+  border: none;
+  background: transparent;
+  padding: 4px 0;
+  text-transform: none;
+}
+
+.currency-pill {
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+/* Grid de categorías. */
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.category-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  background: var(--surface);
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  font-weight: 650;
+  transition: transform 0.15s ease, border 0.2s ease, background 0.2s ease;
+}
+
+.category-grid.is-dimmed .category-card {
+  opacity: 0.6;
+}
+
+.cat-emoji {
+  width: 54px;
+  height: 54px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: #f3f6ff;
+  font-size: 30px;
+  cursor: pointer;
+}
+
+.category-card.is-selected {
+  border-color: var(--primary);
+  background: #f3f6ff;
+  transform: scale(1.02);
+  box-shadow: 0 12px 20px rgba(31, 107, 255, 0.2);
+  opacity: 1;
+}
+
+/* Selector de fecha y modal. */
+.date-display {
+  width: 100%;
+  text-align: left;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(6px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 10;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal.is-open {
+  display: flex;
+}
+
+.modal__content {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  width: min(320px, 100%);
+  display: grid;
+  gap: 12px;
+  animation: slideUp 0.2s ease;
+}
+
+.modal__actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.chip {
+  border: 1px solid var(--border);
+  background: #f3f6ff;
+  border-radius: 999px;
+  padding: 8px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.date-picker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.date-part {
+  border: 1px solid var(--border);
+  background: #f8faff;
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.currency-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.currency-option {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  font-weight: 700;
+  background: var(--surface);
+  cursor: pointer;
+  text-align: center;
+}
+
+.currency-option.is-selected {
+  border-color: var(--primary);
+  background: #f3f6ff;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(8px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.expense-list {
+  display: grid;
+  gap: 12px;
+}
+
+/* Filtros del periodo visible. */
+.filters {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.summary {
+  display: grid;
+  gap: 16px;
+}
+
+.yearly-chart {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  overflow-x: auto;
+}
+
+.yearly-chart__labels {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: center;
+  min-width: 520px;
+}
+
+.yearly-chart__bars {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 6px;
+  align-items: end;
+  height: 180px;
+  min-width: 520px;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+}
+
+.yearly-bar {
+  display: grid;
+  gap: 8px;
+  align-items: end;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  padding: 0;
+  position: relative;
+  height: 100%;
+}
+
+.yearly-bar__fill {
+  width: 100%;
+  height: 0;
+  min-height: 4px;
+  background: #93c5fd;
+  border-radius: 10px;
+  transition: height 0.2s ease, background 0.2s ease;
+}
+
+.yearly-bar.is-active .yearly-bar__fill {
+  background: #2563eb;
+}
+
+.yearly-bar__tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translate(-50%, -6px);
+  background: #0f172a;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.yearly-bar:hover .yearly-bar__tooltip,
+.yearly-bar.is-tooltip .yearly-bar__tooltip,
+.yearly-bar:focus-visible .yearly-bar__tooltip {
+  opacity: 1;
+}
+
+.category-list {
+  display: grid;
+  gap: 12px;
+}
+
+.category-item {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.category-header {
+  display: grid;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.category-header strong {
+  font-size: 1.05rem;
+}
+
+.category-header span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.category-expenses {
+  display: grid;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.category-expense {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.category-expense-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  font-weight: 600;
+}
+
+.category-expense-meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.expense-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.expense-item {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.expense-info {
+  display: grid;
+  gap: 4px;
+}
+
+.expense-info strong {
+  font-size: 1rem;
+}
+
+.expense-meta {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.expense-amount {
+  font-weight: 700;
+  color: var(--success);
+  text-align: right;
+}
+
+.delete-button {
+  background: #fee2e2;
+  color: #991b1b;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
 }
 
-/*
-  Efecto al pasar el mouse sobre el botón.
-*/
-button:hover {
-  background: #1d4ed8;
+.delete-button:hover {
+  background: #fecaca;
 }
 
-/*
-  Estilo especial para el mensaje final.
-*/
-.message {
-  margin-top: 1.25rem;
-  font-size: 1.1rem;
-  color: #0f172a;
+@media (max-width: 640px) {
+  .card {
+    padding: 24px;
+    width: 100%;
+  }
+
+  /* En móvil, filtros uno debajo del otro. */
+  .filters {
+    grid-template-columns: 1fr;
+  }
+
+  .category-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .yearly-chart__labels {
+    font-size: 0.7rem;
+  }
+
+  .yearly-chart__bars {
+    min-height: 100px;
+  }
+
+  .expense-item {
+    grid-template-columns: 1fr;
+    text-align: left;
+  }
+
+  .expense-amount {
+    text-align: left;
+  }
 }
