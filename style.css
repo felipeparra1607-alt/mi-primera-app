@@ -5,7 +5,7 @@
 */
 
 :root {
-  --bg: #f5f7fb;
+  --bg: #0b1220;
   --surface: #ffffff;
   --text: #0b1220;
   --muted: #5b6472;
@@ -40,16 +40,27 @@ body {
 .card {
   background: var(--surface);
   width: min(720px, 100%);
-  border-radius: var(--radius-lg);
+  border-radius: 24px;
   padding: 32px;
   box-shadow: var(--shadow);
   display: grid;
   gap: 28px;
+  position: relative;
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  inset: -16px;
+  border-radius: 30px;
+  background: rgba(31, 107, 255, 0.18);
+  filter: blur(30px);
+  z-index: -1;
 }
 
 .card__header.brand {
   height: 96px;
-  border-radius: 20px;
+  border-radius: 26px;
   display: grid;
   place-items: center;
   background: linear-gradient(135deg, #1f6bff 0%, #2d3cff 100%);
@@ -57,8 +68,8 @@ body {
 
 .card__header .title {
   margin: 0;
-  font-size: 42px;
-  font-weight: 800;
+  font-size: 44px;
+  font-weight: 900;
   letter-spacing: -0.8px;
   color: #fff;
   text-shadow: 0 6px 18px rgba(8, 23, 67, 0.35);
@@ -121,8 +132,8 @@ body {
 
 .section h2 {
   margin: 0;
-  font-size: 26px;
-  font-weight: 750;
+  font-size: 28px;
+  font-weight: 850;
 }
 
 .total {
@@ -152,21 +163,32 @@ body {
 }
 
 #addView .field {
-  font-weight: 700;
-  color: var(--muted);
+  font-weight: 900;
+  color: #0b1220;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
-  font-size: 14px;
+  letter-spacing: 1.2px;
+  font-size: 13px;
 }
 
 #addView .field span {
-  font-size: 14px;
+  font-size: 13px;
 }
 
 #conceptInput {
   text-transform: uppercase;
   text-align: center;
-  height: 54px;
+  height: 56px;
+  border-radius: 18px;
+  font-size: 16px;
+  font-weight: 750;
+  color: #0b1220;
+}
+
+#addView .counter,
+#addView .category-grid,
+#addView .date-display,
+#addView .primary-button {
+  text-transform: none;
 }
 
 input,
@@ -200,25 +222,28 @@ select {
 
 input:focus,
 select:focus {
-  outline: 2px solid rgba(37, 99, 235, 0.35);
-  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(31, 107, 255, 0.22);
+  border-color: #1f6bff;
 }
 
 .primary-button {
   background: linear-gradient(135deg, #1f6bff 0%, #2d3cff 100%);
   color: #fff;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: 18px;
   height: 56px;
   padding: 12px 16px;
   font-weight: 850;
   cursor: pointer;
   transition: transform 0.2s ease;
   box-shadow: 0 14px 24px rgba(31, 107, 255, 0.25);
+  font-size: 16px;
 }
 
 .primary-button:hover {
   transform: translateY(-1px);
+  box-shadow: 0 16px 26px rgba(31, 107, 255, 0.3);
 }
 
 .primary-button.is-disabled {
@@ -294,13 +319,14 @@ select:focus {
 }
 
 .currency-pill {
-  height: 36px;
-  padding: 0 12px;
+  height: 38px;
+  padding: 0 14px;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--surface);
   font-size: 14px;
-  font-weight: 750;
+  font-weight: 900;
+  color: #0b1220;
   cursor: pointer;
 }
 
@@ -311,38 +337,75 @@ select:focus {
   gap: 14px;
 }
 
+.category-card[data-category="Restaurantes"] .cat-circle {
+  background: #fff4e6;
+}
+
+.category-card[data-category="Supermercado"] .cat-circle {
+  background: #e9f7ff;
+}
+
+.category-card[data-category="Transporte"] .cat-circle {
+  background: #eef2ff;
+}
+
+.category-card[data-category="Gasolina"] .cat-circle {
+  background: #fff1f2;
+}
+
+.category-card[data-category="Ocio"] .cat-circle {
+  background: #f3f0ff;
+}
+
+.category-card[data-category="Otros"] .cat-circle {
+  background: #f1fff3;
+}
+
 .category-card {
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: 20px;
   padding: 14px;
   background: var(--surface);
   display: grid;
   gap: 8px;
   justify-items: center;
-  font-weight: 650;
-  transition: transform 0.15s ease, border 0.2s ease, background 0.2s ease;
+  transition: border 0.2s ease, box-shadow 0.2s ease,
+    background 0.2s ease;
 }
 
-.category-grid.is-dimmed .category-card {
-  opacity: 0.6;
-}
-
-.cat-emoji {
-  width: 54px;
-  height: 54px;
-  border-radius: var(--radius-md);
-  border: none;
-  background: #f3f6ff;
-  font-size: 30px;
+.cat-circle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  font-size: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 140ms ease, box-shadow 140ms ease,
+    background 140ms ease, border-color 140ms ease;
   cursor: pointer;
 }
 
 .category-card.is-selected {
-  border-color: var(--primary);
+  border-color: #1f6bff;
   background: #f3f6ff;
-  transform: scale(1.02);
-  box-shadow: 0 12px 20px rgba(31, 107, 255, 0.2);
-  opacity: 1;
+  box-shadow: 0 10px 24px rgba(31, 107, 255, 0.18);
+}
+
+.category-card.is-selected .cat-circle {
+  transform: scale(1.06);
+  box-shadow: 0 10px 20px rgba(31, 107, 255, 0.18);
+  border-color: #1f6bff;
+}
+
+.cat-text {
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 1.1px;
+  color: #0b1220;
+  text-transform: uppercase;
 }
 
 /* Selector de fecha y modal. */
@@ -350,7 +413,7 @@ select:focus {
   width: 100%;
   text-align: left;
   padding: 16px;
-  border-radius: var(--radius-md);
+  border-radius: 18px;
   border: 1px solid var(--border);
   background: var(--surface);
   font-weight: 650;
@@ -384,6 +447,10 @@ select:focus {
   animation: slideUp 0.2s ease;
 }
 
+#dateModal .modal__actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .modal__actions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -408,7 +475,7 @@ select:focus {
 .date-part {
   border: 1px solid var(--border);
   background: #f8faff;
-  border-radius: var(--radius-sm);
+  border-radius: 18px;
   padding: 10px;
   font-weight: 700;
   cursor: pointer;
@@ -423,7 +490,7 @@ select:focus {
 
 .currency-option {
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: 18px;
   padding: 10px;
   font-weight: 700;
   background: var(--surface);

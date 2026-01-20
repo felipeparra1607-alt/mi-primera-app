@@ -25,9 +25,9 @@ const currencyButton = document.getElementById("currencyButton");
 const currencyModal = document.getElementById("currencyModal");
 const currencyOptions = document.getElementById("currencyOptions");
 const closeCurrencyModal = document.getElementById("closeCurrencyModal");
-const daySelect = document.getElementById("daySelect");
-const monthSelectInput = document.getElementById("monthSelectInput");
-const yearSelectInput = document.getElementById("yearSelectInput");
+const dayButton = document.getElementById("dayButton");
+const monthButton = document.getElementById("monthButton");
+const yearButton = document.getElementById("yearButton");
 const yearSelect = document.getElementById("yearSelect");
 const monthSelect = document.getElementById("monthSelect");
 const yearlyBars = document.getElementById("yearlyBars");
@@ -415,6 +415,48 @@ const addExpense = (event) => {
     showMessage("El concepto es obligatorio.");
     return;
   }
+  const target = emojiButton.closest(".category-card");
+  categoryInput.value = target.dataset.category;
+  updateCategorySelection();
+  updateSubmitState();
+});
+
+dateDisplay.addEventListener("click", openDateModal);
+closeDateModal.addEventListener("click", () => {
+  applyDateFromSelectors();
+  closeModal();
+});
+
+conceptInput.addEventListener("input", updateSubmitState);
+amountInput.addEventListener("blur", () => {
+  amountInput.value = formatAmountInput(parseAmount(amountInput.value));
+});
+
+shortcutToday.addEventListener("click", () => {
+  dateInput.value = today.toISOString().slice(0, 10);
+  syncDateSelectors();
+});
+
+shortcutYesterday.addEventListener("click", () => {
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  dateInput.value = yesterday.toISOString().slice(0, 10);
+  syncDateSelectors();
+});
+
+dateModal.addEventListener("click", (event) => {
+  if (event.target === dateModal) {
+    closeModal();
+  }
+});
+
+currencyButton.addEventListener("click", openCurrencyModal);
+closeCurrencyModal.addEventListener("click", closeCurrency);
+currencyModal.addEventListener("click", (event) => {
+  if (event.target === currencyModal) {
+    closeCurrency();
+  }
+});
 
   if (Number.isNaN(amount) || amount <= 0) {
     showMessage("La cantidad debe ser mayor que 0.");
@@ -492,7 +534,7 @@ const updateCategorySelection = () => {
 
 // Modal simple para elegir fecha.
 const openDateModal = () => {
-  syncDateSelectors();
+  syncDateButtons();
   dateModal.classList.add("is-open");
   dateModal.setAttribute("aria-hidden", "false");
 };
@@ -529,45 +571,37 @@ const buildCurrencyOptions = () => {
   });
 };
 
-const buildDateSelectors = () => {
-  daySelect.innerHTML = "";
-  for (let day = 1; day <= 31; day += 1) {
-    const option = document.createElement("option");
-    option.value = String(day).padStart(2, "0");
-    option.textContent = day;
-    daySelect.appendChild(option);
-  }
-
-  monthSelectInput.innerHTML = "";
-  MONTHS.forEach((monthName, index) => {
-    const option = document.createElement("option");
-    option.value = String(index + 1).padStart(2, "0");
-    option.textContent = monthName.slice(0, 3);
-    monthSelectInput.appendChild(option);
-  });
-
-  yearSelectInput.innerHTML = "";
+const buildDateOptions = () => {
   const currentYearNumber = Number(currentYear);
-  for (let year = currentYearNumber - 5; year <= currentYearNumber + 1; year += 1) {
-    const option = document.createElement("option");
-    option.value = String(year);
-    option.textContent = String(year);
-    yearSelectInput.appendChild(option);
-  }
+  return {
+    days: Array.from({ length: 31 }, (_, index) =>
+      String(index + 1).padStart(2, "0")
+    ),
+    months: MONTHS.map((monthName, index) => ({
+      value: String(index + 1).padStart(2, "0"),
+      label: monthName.slice(0, 3),
+    })),
+    years: Array.from({ length: 7 }, (_, index) =>
+      String(currentYearNumber - 5 + index)
+    ),
+  };
 };
 
-const syncDateSelectors = () => {
+const dateOptions = buildDateOptions();
+
+const syncDateButtons = () => {
   const [year, month, day] = dateInput.value.split("-");
-  daySelect.value = day;
-  monthSelectInput.value = month;
-  yearSelectInput.value = year;
+  const monthLabel =
+    dateOptions.months.find((item) => item.value === month)?.label ?? "Mes";
+  dayButton.textContent = day;
+  monthButton.textContent = monthLabel;
+  yearButton.textContent = year;
 };
 
-const applyDateFromSelectors = () => {
-  const nextDate = `${yearSelectInput.value}-${monthSelectInput.value}-${daySelect.value}`;
-  dateInput.value = nextDate;
+const applyDateFromButtons = (nextDay, nextMonth, nextYear) => {
+  dateInput.value = `${nextYear}-${nextMonth}-${nextDay}`;
   dateDisplay.textContent = formatDateLabel(dateInput.value);
-  syncDateSelectors();
+  syncDateButtons();
 };
 
 const updateSubmitState = () => {
@@ -596,7 +630,7 @@ amountInput.addEventListener("input", () => {
 });
 
 categoryGrid.addEventListener("click", (event) => {
-  const emojiButton = event.target.closest(".cat-emoji");
+  const emojiButton = event.target.closest(".cat-circle");
   if (!emojiButton) {
     return;
   }
@@ -608,7 +642,8 @@ categoryGrid.addEventListener("click", (event) => {
 
 dateDisplay.addEventListener("click", openDateModal);
 closeDateModal.addEventListener("click", () => {
-  applyDateFromSelectors();
+  const [year, month, day] = dateInput.value.split("-");
+  applyDateFromButtons(day, month, year);
   closeModal();
 });
 
@@ -619,14 +654,14 @@ amountInput.addEventListener("blur", () => {
 
 shortcutToday.addEventListener("click", () => {
   dateInput.value = today.toISOString().slice(0, 10);
-  syncDateSelectors();
+  syncDateButtons();
 });
 
 shortcutYesterday.addEventListener("click", () => {
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
   dateInput.value = yesterday.toISOString().slice(0, 10);
-  syncDateSelectors();
+  syncDateButtons();
 });
 
 dateModal.addEventListener("click", (event) => {
@@ -643,9 +678,31 @@ currencyModal.addEventListener("click", (event) => {
   }
 });
 
-daySelect.addEventListener("change", applyDateFromSelectors);
-monthSelectInput.addEventListener("change", applyDateFromSelectors);
-yearSelectInput.addEventListener("change", applyDateFromSelectors);
+dayButton.addEventListener("click", () => {
+  const [year, month, day] = dateInput.value.split("-");
+  const currentIndex = dateOptions.days.indexOf(day);
+  const nextDay =
+    dateOptions.days[(currentIndex + 1) % dateOptions.days.length];
+  applyDateFromButtons(nextDay, month, year);
+});
+
+monthButton.addEventListener("click", () => {
+  const [year, month, day] = dateInput.value.split("-");
+  const currentIndex = dateOptions.months.findIndex(
+    (item) => item.value === month
+  );
+  const nextMonth =
+    dateOptions.months[(currentIndex + 1) % dateOptions.months.length].value;
+  applyDateFromButtons(day, nextMonth, year);
+});
+
+yearButton.addEventListener("click", () => {
+  const [year, month, day] = dateInput.value.split("-");
+  const currentIndex = dateOptions.years.indexOf(year);
+  const nextYear =
+    dateOptions.years[(currentIndex + 1) % dateOptions.years.length];
+  applyDateFromButtons(day, month, nextYear);
+});
 
 yearSelect.addEventListener("change", () => {
   selectedMonthKey = buildMonthKey(
@@ -673,8 +730,7 @@ amountInput.value = formatAmountInput(0);
 categoryInput.value = CATEGORIES[0];
 updateCategorySelection();
 updateSubmitState();
-buildDateSelectors();
-syncDateSelectors();
+syncDateButtons();
 buildCurrencyOptions();
 currencyButton.textContent = selectedCurrency;
 buildMonthOptions();
