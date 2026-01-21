@@ -1,4 +1,5 @@
 const STORAGE_KEY = "fluxo_expenses";
+const BUDGET_KEY = "fluxo_budgets";
 
 const state = {
   amount: 0,
@@ -15,6 +16,12 @@ const state = {
 const viewState = {
   openCategories: new Set(),
   sortBy: {},
+};
+
+const budgetState = {
+  enabled: false,
+  monthly: { amount: 0, currency: "EUR" },
+  categories: {},
 };
 
 const monthNames = [
@@ -56,7 +63,24 @@ const conceptInput = document.getElementById("concept");
 const yearSelect = document.getElementById("year-select");
 const monthSelect = document.getElementById("month-select");
 const expensesList = document.getElementById("expenses-list");
-const monthInsight = document.getElementById("month-insight");
+const budgetView = document.getElementById("view-budget");
+const budgetWizard = document.getElementById("budget-wizard");
+const budgetStartBtn = document.getElementById("budget-start");
+const budgetEditBtn = document.getElementById("budget-edit");
+const budgetDisableBtn = document.getElementById("budget-disable");
+const budgetBackBtn = document.getElementById("budget-back");
+const budgetStepLabel = document.getElementById("budget-step");
+const budgetNext1 = document.getElementById("budget-next-1");
+const budgetNext2 = document.getElementById("budget-next-2");
+const budgetSkip = document.getElementById("budget-skip");
+const budgetActivate = document.getElementById("budget-activate");
+const budgetMonthlyAmount = document.getElementById("budget-month-amount");
+const budgetMonthlyCurrency = document.getElementById("budget-month-currency");
+const budgetSummaryMonth = document.getElementById("budget-summary-month");
+const budgetSummaryCategories = document.getElementById("budget-summary-categories");
+const monthlyBudgetBar = document.getElementById("monthly-budget-bar");
+const monthlyBudgetFill = document.getElementById("monthly-budget-fill");
+const monthlyBudgetTooltip = document.getElementById("monthly-budget-tooltip");
 
 const formatAmount = (amount) =>
   amount.toLocaleString("es-ES", {
@@ -114,6 +138,30 @@ const loadExpenses = () => {
 
 const saveExpenses = (expenses) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
+};
+
+const loadBudgets = () => {
+  const raw = localStorage.getItem(BUDGET_KEY);
+  if (!raw) {
+    return { ...budgetState };
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      enabled: Boolean(parsed.enabled),
+      monthly: {
+        amount: Number(parsed.monthly?.amount || 0),
+        currency: parsed.monthly?.currency || "EUR",
+      },
+      categories: parsed.categories || {},
+    };
+  } catch (error) {
+    return { ...budgetState };
+  }
+};
+
+const saveBudgets = (budgets) => {
+  localStorage.setItem(BUDGET_KEY, JSON.stringify(budgets));
 };
 
 const showToast = () => {
@@ -269,19 +317,6 @@ const categoryMeta = {
 
 const getCategoryEmoji = (category) => categoryMeta[category]?.emoji ?? "✨";
 
-const updateInsight = (filtered) => {
-  if (!filtered.length) {
-    monthInsight.textContent = "Aún no hay gastos para este mes.";
-    return;
-  }
-  const counts = {};
-  filtered.forEach((expense) => {
-    counts[expense.category] = (counts[expense.category] || 0) + 1;
-  });
-  const topCategory = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
-  monthInsight.textContent = `La categoría con más gastos fue ${topCategory}.`;
-};
-
 const getSortMode = (category) => viewState.sortBy[category] || "date";
 
 const sortExpensesForCategory = (expenses, category) => {
@@ -291,6 +326,147 @@ const sortExpensesForCategory = (expenses, category) => {
       return b.amount - a.amount;
     }
     return new Date(b.date) - new Date(a.date);
+  });
+};
+
+const getBudgetProgress = (spent, budgetAmount) => {
+  if (!budgetAmount || budgetAmount <= 0) {
+    return { percent: 0, width: 0, color: "#16A34A" };
+  }
+  const rawPercent = Math.min((spent / budgetAmount) * 100, 999);
+  const width = Math.min(rawPercent, 100);
+  let color = "#16A34A";
+  if (rawPercent >= 90) {
+    color = "#EF4444";
+  } else if (rawPercent >= 70) {
+    color = "#F59E0B";
+  }
+  return { percent: Math.round(rawPercent), width, color };
+};
+
+const updateMonthlyBudgetBar = (filtered) => {
+  if (!budgetState.enabled || budgetState.monthly.amount <= 0) {
+    monthlyBudgetBar.classList.remove("is-visible");
+    monthlyBudgetBar.setAttribute("aria-hidden", "true");
+    return;
+  }
+  const spent = filtered
+    .filter((expense) => expense.currency === budgetState.monthly.currency)
+    .reduce((sum, expense) => sum + expense.amount, 0);
+  const progress = getBudgetProgress(spent, budgetState.monthly.amount);
+  monthlyBudgetFill.style.width = `${progress.width}%`;
+  monthlyBudgetFill.style.background = progress.color;
+  monthlyBudgetTooltip.textContent = `Has usado el ${progress.percent}% de tu presupuesto mensual`;
+  monthlyBudgetBar.classList.add("is-visible");
+  monthlyBudgetBar.setAttribute("aria-hidden", "false");
+};
+
+const buildCategoryBudgetBar = (category, subtotal, currency) => {
+  const budgetAmount = budgetState.categories?.[category];
+  if (!budgetState.enabled || !budgetAmount || budgetAmount <= 0) {
+    return null;
+  }
+  if (currency && currency !== budgetState.monthly.currency) {
+    return null;
+  }
+  const bar = document.createElement("div");
+  bar.className = "vg-budget-bar vg-category-budget";
+  bar.classList.add("is-visible");
+  const fill = document.createElement("span");
+  fill.className = "vg-budget-fill";
+  const tooltip = document.createElement("span");
+  tooltip.className = "vg-budget-tooltip";
+  const progress = getBudgetProgress(subtotal, budgetAmount);
+  fill.style.width = `${progress.width}%`;
+  fill.style.background = progress.color;
+  tooltip.textContent = `Has usado el ${progress.percent}% del presupuesto de ${category}`;
+  bar.append(fill, tooltip);
+  return bar;
+};
+
+const setWizardStep = (step) => {
+  budgetStepLabel.textContent = String(step);
+  document.querySelectorAll(".vg-step-panel").forEach((panel) => {
+    panel.classList.toggle("is-active", panel.dataset.step === String(step));
+  });
+  yearSelect.value = String(currentYear);
+};
+
+const openWizard = () => {
+  budgetView.classList.add("is-hidden");
+  budgetWizard.classList.add("is-visible");
+  budgetWizard.setAttribute("aria-hidden", "false");
+  setWizardStep(1);
+};
+
+const closeWizard = () => {
+  budgetView.classList.remove("is-hidden");
+  budgetWizard.classList.remove("is-visible");
+  budgetWizard.setAttribute("aria-hidden", "true");
+};
+
+const loadBudgetIntoWizard = (budgets) => {
+  budgetMonthlyAmount.value = budgets.monthly.amount || "";
+  budgetMonthlyCurrency.value = budgets.monthly.currency || "EUR";
+  document.querySelectorAll("[data-category-budget]").forEach((input) => {
+    const category = input.dataset.categoryBudget;
+    input.value = budgets.categories?.[category] ?? "";
+  });
+};
+
+const buildWizardSummary = () => {
+  budgetSummaryMonth.textContent = `Presupuesto mensual: ${formatAmount(
+    Number(budgetMonthlyAmount.value || 0)
+  )} ${budgetMonthlyCurrency.value}`;
+  budgetSummaryCategories.innerHTML = "";
+  document.querySelectorAll("[data-category-budget]").forEach((input) => {
+    const value = Number(input.value);
+    if (value > 0) {
+      const item = document.createElement("div");
+      item.className = "vg-summary-item";
+      item.textContent = `${input.dataset.categoryBudget}: ${formatAmount(value)} ${
+        budgetMonthlyCurrency.value
+      }`;
+      budgetSummaryCategories.appendChild(item);
+    }
+  });
+};
+
+const applyBudgetSettings = () => {
+  const monthlyAmount = Number(budgetMonthlyAmount.value || 0);
+  if (monthlyAmount <= 0) {
+    window.alert("Ingresa un presupuesto mensual válido.");
+    return false;
+  }
+  budgetState.enabled = true;
+  budgetState.monthly = {
+    amount: monthlyAmount,
+    currency: budgetMonthlyCurrency.value,
+  };
+  const categories = {};
+  document.querySelectorAll("[data-category-budget]").forEach((input) => {
+    const value = Number(input.value);
+    if (value > 0) {
+      categories[input.dataset.categoryBudget] = value;
+    }
+  });
+  budgetState.categories = categories;
+  saveBudgets(budgetState);
+  return true;
+};
+
+const updateBudgetButtons = () => {
+  const cta = document.querySelector(".vg-budget-cta");
+  cta.classList.toggle("is-enabled", budgetState.enabled);
+};
+
+const setupBudgetTooltip = (bar) => {
+  if (!bar) {
+    return;
+  }
+  bar.addEventListener("click", () => {
+    bar.classList.toggle("is-active");
+    setTimeout(() => bar.classList.remove("is-active"), 1600);
   });
 };
 
@@ -311,7 +487,8 @@ const renderExpenses = () => {
     totals[expense.currency] = (totals[expense.currency] || 0) + expense.amount;
   });
   document.getElementById("month-total").textContent = buildAmountLabel(totals);
-  updateInsight(filtered);
+  updateMonthlyBudgetBar(filtered);
+  setupBudgetTooltip(monthlyBudgetBar);
 
   const grouped = {};
   filtered.forEach((expense) => {
@@ -352,13 +529,31 @@ const renderExpenses = () => {
 
     const right = document.createElement("div");
     right.className = "vg-category-right";
+    const meta = document.createElement("div");
+    meta.className = "vg-category-meta";
     const subtotal = document.createElement("span");
     subtotal.className = "vg-category-subtotal";
     subtotal.textContent = buildAmountLabel(subtotalTotals);
+    meta.appendChild(subtotal);
+
+    const currencyForBudget = budgetState.monthly.currency;
+    const subtotalForCurrency = grouped[category]
+      .filter((expense) => expense.currency === currencyForBudget)
+      .reduce((sum, expense) => sum + expense.amount, 0);
+    const categoryBudgetBar = buildCategoryBudgetBar(
+      category,
+      subtotalForCurrency,
+      currencyForBudget
+    );
+    if (categoryBudgetBar) {
+      meta.appendChild(categoryBudgetBar);
+      setupBudgetTooltip(categoryBudgetBar);
+    }
+
     const chevron = document.createElement("span");
     chevron.className = "vg-chevron";
     chevron.textContent = "⌄";
-    right.append(subtotal, chevron);
+    right.append(meta, chevron);
 
     header.append(title, right);
     categoryCard.appendChild(header);
@@ -647,6 +842,58 @@ const setupFilters = () => {
   monthSelect.addEventListener("change", renderExpenses);
 };
 
+const setupBudgets = () => {
+  Object.assign(budgetState, loadBudgets());
+  updateBudgetButtons();
+  budgetStartBtn.addEventListener("click", () => {
+    loadBudgetIntoWizard(budgetState);
+    openWizard();
+  });
+  budgetEditBtn.addEventListener("click", () => {
+    loadBudgetIntoWizard(budgetState);
+    openWizard();
+  });
+  budgetDisableBtn.addEventListener("click", () => {
+    budgetState.enabled = false;
+    saveBudgets(budgetState);
+    updateBudgetButtons();
+    renderExpenses();
+  });
+  budgetBackBtn.addEventListener("click", closeWizard);
+
+  budgetNext1.addEventListener("click", () => {
+    const amount = Number(budgetMonthlyAmount.value || 0);
+    if (amount <= 0) {
+      window.alert("Ingresa un presupuesto mensual válido.");
+      return;
+    }
+    setWizardStep(2);
+  });
+
+  budgetSkip.addEventListener("click", () => {
+    document.querySelectorAll("[data-category-budget]").forEach((input) => {
+      input.value = "";
+    });
+    buildWizardSummary();
+    setWizardStep(3);
+  });
+
+  budgetNext2.addEventListener("click", () => {
+    buildWizardSummary();
+    setWizardStep(3);
+  });
+
+  budgetActivate.addEventListener("click", () => {
+    const applied = applyBudgetSettings();
+    if (!applied) {
+      return;
+    }
+    updateBudgetButtons();
+    closeWizard();
+    renderExpenses();
+  });
+};
+
 const init = () => {
   setupTabs();
   setupAmountControl();
@@ -654,6 +901,7 @@ const init = () => {
   setupCurrencyModal();
   setupDateModal();
   setupFilters();
+  setupBudgets();
 
   updateCurrency(state.currency);
   updateAmountDisplay();
