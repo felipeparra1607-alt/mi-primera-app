@@ -12,6 +12,11 @@ const state = {
   },
 };
 
+const viewState = {
+  openCategories: new Set(),
+  sortBy: {},
+};
+
 const monthNames = [
   "ene",
   "feb",
@@ -51,6 +56,7 @@ const conceptInput = document.getElementById("concept");
 const yearSelect = document.getElementById("year-select");
 const monthSelect = document.getElementById("month-select");
 const expensesList = document.getElementById("expenses-list");
+const monthInsight = document.getElementById("month-insight");
 
 const formatAmount = (amount) =>
   amount.toLocaleString("es-ES", {
@@ -252,6 +258,42 @@ const buildAmountLabel = (totals) => {
     .join(" · ");
 };
 
+const categoryMeta = {
+  Restaurantes: { emoji: "🍽️" },
+  Supermercado: { emoji: "🛒" },
+  Transporte: { emoji: "🚗" },
+  Gasolina: { emoji: "⛽" },
+  Ocio: { emoji: "🎉" },
+  Otros: { emoji: "✨" },
+};
+
+const getCategoryEmoji = (category) => categoryMeta[category]?.emoji ?? "✨";
+
+const updateInsight = (filtered) => {
+  if (!filtered.length) {
+    monthInsight.textContent = "Aún no hay gastos para este mes.";
+    return;
+  }
+  const counts = {};
+  filtered.forEach((expense) => {
+    counts[expense.category] = (counts[expense.category] || 0) + 1;
+  });
+  const topCategory = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+  monthInsight.textContent = `La categoría con más gastos fue ${topCategory}.`;
+};
+
+const getSortMode = (category) => viewState.sortBy[category] || "date";
+
+const sortExpensesForCategory = (expenses, category) => {
+  const mode = getSortMode(category);
+  return [...expenses].sort((a, b) => {
+    if (mode === "amount") {
+      return b.amount - a.amount;
+    }
+    return new Date(b.date) - new Date(a.date);
+  });
+};
+
 const renderExpenses = () => {
   const expenses = loadExpenses();
   const selectedYear = Number(yearSelect.value);
@@ -269,6 +311,7 @@ const renderExpenses = () => {
     totals[expense.currency] = (totals[expense.currency] || 0) + expense.amount;
   });
   document.getElementById("month-total").textContent = buildAmountLabel(totals);
+  updateInsight(filtered);
 
   const grouped = {};
   filtered.forEach((expense) => {
@@ -281,10 +324,25 @@ const renderExpenses = () => {
   expensesList.innerHTML = "";
 
   Object.keys(grouped).forEach((category) => {
-    const group = document.createElement("div");
-    group.className = "category-group";
-    const title = document.createElement("h3");
-    title.textContent = category;
+    const categoryCard = document.createElement("div");
+    categoryCard.className = "vg-category";
+    const isOpen = viewState.openCategories.has(category);
+    if (isOpen) {
+      categoryCard.classList.add("is-open");
+    }
+
+    const header = document.createElement("button");
+    header.type = "button";
+    header.className = "vg-category-header";
+    header.setAttribute("aria-expanded", String(isOpen));
+
+    const title = document.createElement("div");
+    title.className = "vg-category-title";
+    const emoji = document.createElement("span");
+    emoji.textContent = getCategoryEmoji(category);
+    const name = document.createElement("span");
+    name.textContent = category;
+    title.append(emoji, name);
 
     const subtotalTotals = {};
     grouped[category].forEach((expense) => {
@@ -292,58 +350,125 @@ const renderExpenses = () => {
         (subtotalTotals[expense.currency] || 0) + expense.amount;
     });
 
-    const subtotal = document.createElement("div");
-    subtotal.className = "subtotal";
-    subtotal.textContent = `Subtotal: ${buildAmountLabel(subtotalTotals)}`;
+    const right = document.createElement("div");
+    right.className = "vg-category-right";
+    const subtotal = document.createElement("span");
+    subtotal.className = "vg-category-subtotal";
+    subtotal.textContent = buildAmountLabel(subtotalTotals);
+    const chevron = document.createElement("span");
+    chevron.className = "vg-chevron";
+    chevron.textContent = "⌄";
+    right.append(subtotal, chevron);
 
-    group.append(title, subtotal);
+    header.append(title, right);
+    categoryCard.appendChild(header);
 
-    grouped[category].forEach((expense) => {
-      const item = document.createElement("div");
-      item.className = "expense-item";
+    const body = document.createElement("div");
+    body.className = "vg-category-body";
 
-      const meta = document.createElement("div");
-      meta.className = "expense-meta";
-      const concept = document.createElement("span");
-      concept.textContent = expense.concept;
-      const date = document.createElement("span");
-      date.className = "expense-date";
-      date.textContent = formatDateText(new Date(expense.date));
+    if (isOpen) {
+      const toggle = document.createElement("div");
+      toggle.className = "vg-sort-toggle";
+      const dateBtn = document.createElement("button");
+      dateBtn.type = "button";
+      dateBtn.className = "vg-sort-btn";
+      dateBtn.textContent = "Fecha";
+      dateBtn.dataset.sort = "date";
+      const amountBtn = document.createElement("button");
+      amountBtn.type = "button";
+      amountBtn.className = "vg-sort-btn";
+      amountBtn.textContent = "Cantidad";
+      amountBtn.dataset.sort = "amount";
 
-      meta.append(concept, date);
+      const activeSort = getSortMode(category);
+      if (activeSort === "date") {
+        dateBtn.classList.add("is-active");
+      } else {
+        amountBtn.classList.add("is-active");
+      }
 
-      const actions = document.createElement("div");
-      actions.className = "expense-actions";
+      toggle.append(dateBtn, amountBtn);
+      body.appendChild(toggle);
 
-      const amount = document.createElement("div");
-      amount.className = "expense-amount";
-      amount.textContent = `${formatAmount(expense.amount)} ${currencySymbols[expense.currency]}`;
+      sortExpensesForCategory(grouped[category], category).forEach((expense) => {
+        const item = document.createElement("div");
+        item.className = "vg-expense-item";
 
-      const deleteBtn = document.createElement("button");
-      deleteBtn.type = "button";
-      deleteBtn.className = "delete-btn";
-      deleteBtn.textContent = "Eliminar";
-      deleteBtn.addEventListener("click", () => {
-        const confirmed = window.confirm("¿Eliminar este gasto?");
-        if (!confirmed) {
-          return;
-        }
-        const updated = loadExpenses().filter((item) => item.id !== expense.id);
-        saveExpenses(updated);
-        renderExpenses();
+        const meta = document.createElement("div");
+        meta.className = "expense-meta";
+        const concept = document.createElement("span");
+        concept.textContent = expense.concept;
+        const date = document.createElement("span");
+        date.className = "expense-date";
+        date.textContent = formatDateText(new Date(expense.date));
+        meta.append(concept, date);
+
+        const actions = document.createElement("div");
+        actions.className = "vg-expense-actions";
+        const amount = document.createElement("div");
+        amount.className = "expense-amount";
+        amount.textContent = `${formatAmount(expense.amount)} ${currencySymbols[expense.currency]}`;
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "vg-delete-btn";
+        deleteBtn.textContent = "🗑️";
+        deleteBtn.setAttribute("aria-label", "Eliminar gasto");
+        deleteBtn.addEventListener("click", () => {
+          const confirmed = window.confirm("¿Eliminar este gasto?");
+          if (!confirmed) {
+            return;
+          }
+          item.style.maxHeight = `${item.offsetHeight}px`;
+          item.offsetHeight;
+          item.classList.add("is-removing");
+          item.style.maxHeight = "0px";
+          setTimeout(() => {
+            const updated = loadExpenses().filter((entry) => entry.id !== expense.id);
+            saveExpenses(updated);
+            renderExpenses();
+          }, 180);
+        });
+
+        actions.append(amount, deleteBtn);
+        item.append(meta, actions);
+        body.appendChild(item);
       });
+    }
 
-      actions.append(amount, deleteBtn);
-      item.append(meta, actions);
-      group.appendChild(item);
+    categoryCard.appendChild(body);
+    header.addEventListener("click", () => {
+      if (viewState.openCategories.has(category)) {
+        viewState.openCategories.delete(category);
+      } else {
+        viewState.openCategories.add(category);
+      }
+      renderExpenses();
     });
 
-    expensesList.appendChild(group);
+    categoryCard.addEventListener("click", (event) => {
+      if (!event.target.classList.contains("vg-sort-btn")) {
+        return;
+      }
+      const sortValue = event.target.dataset.sort;
+      viewState.sortBy[category] = sortValue;
+      renderExpenses();
+    });
+
+    expensesList.appendChild(categoryCard);
+
+    if (isOpen) {
+      requestAnimationFrame(() => {
+        body.style.maxHeight = `${body.scrollHeight}px`;
+      });
+    } else {
+      body.style.maxHeight = "0px";
+    }
   });
 
   if (!filtered.length) {
     const empty = document.createElement("div");
-    empty.className = "category-group";
+    empty.className = "vg-empty";
     empty.textContent = "No hay gastos para este mes.";
     expensesList.appendChild(empty);
   }

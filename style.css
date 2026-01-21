@@ -232,40 +232,52 @@ select:focus,
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  border: 1px solid transparent;
-  font-size: 28px;
+  border: none;
+  font-size: 34px;
   cursor: pointer;
-  transition: 160ms ease;
+  box-shadow: none;
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
 
 .cat-circle[data-color="restaurantes"] {
-  background: #fff4e6;
+  --cat-bg: #fff4e6;
+  background: var(--cat-bg);
 }
 
 .cat-circle[data-color="supermercado"] {
-  background: #e9f7ff;
+  --cat-bg: #e9f7ff;
+  background: var(--cat-bg);
 }
 
 .cat-circle[data-color="transporte"] {
-  background: #eef2ff;
+  --cat-bg: #eef2ff;
+  background: var(--cat-bg);
 }
 
 .cat-circle[data-color="gasolina"] {
-  background: #fff1f2;
+  --cat-bg: #fff1f2;
+  background: var(--cat-bg);
 }
 
 .cat-circle[data-color="ocio"] {
-  background: #f3f0ff;
+  --cat-bg: #f3f0ff;
+  background: var(--cat-bg);
 }
 
 .cat-circle[data-color="otros"] {
-  background: #f1fff3;
+  --cat-bg: #f1fff3;
+  background: var(--cat-bg);
+}
+
+.cat-circle:hover {
+  transform: scale(1.08);
+  box-shadow: 0 10px 20px rgba(31, 107, 255, 0.2);
+  background: color-mix(in srgb, var(--cat-bg) 86%, #ffffff 14%);
 }
 
 .cat-card.selected .cat-circle {
-  transform: scale(1.07);
-  border-color: #1f6bff;
-  box-shadow: 0 12px 22px rgba(31, 107, 255, 0.18);
+  transform: scale(1.1);
+  box-shadow: 0 12px 24px rgba(31, 107, 255, 0.25);
 }
 
 .cat-name {
@@ -347,6 +359,160 @@ select:focus,
   gap: 18px;
 }
 
+.vg-insight {
+  margin: -6px 0 18px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2a44;
+}
+
+.vg-category {
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: #fff;
+  overflow: hidden;
+  transition: 180ms ease;
+}
+
+.vg-category-header {
+  width: 100%;
+  border: none;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  cursor: pointer;
+  transition: 160ms ease;
+}
+
+.vg-category-header:hover {
+  background: var(--muted-bg);
+}
+
+.vg-category-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.vg-category-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vg-category-subtotal {
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.vg-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--muted-bg);
+  font-size: 16px;
+  transition: 160ms ease;
+}
+
+.vg-category.is-open .vg-chevron {
+  transform: rotate(180deg);
+}
+
+.vg-category-body {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-6px);
+  overflow: hidden;
+  transition: 180ms ease;
+  padding: 0 18px;
+}
+
+.vg-category.is-open .vg-category-body {
+  opacity: 1;
+  transform: translateY(0);
+  padding-bottom: 16px;
+}
+
+.vg-sort-toggle {
+  margin: 12px 0 12px;
+  display: inline-flex;
+  background: var(--muted-bg);
+  border-radius: 999px;
+  padding: 4px;
+  gap: 4px;
+}
+
+.vg-sort-btn {
+  border: none;
+  background: transparent;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 160ms ease;
+}
+
+.vg-sort-btn.is-active {
+  background: #fff;
+  color: #1f6bff;
+  box-shadow: 0 6px 16px rgba(31, 107, 255, 0.18);
+}
+
+.vg-expense-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  transition: 180ms ease;
+  max-height: 120px;
+  overflow: hidden;
+}
+
+.vg-expense-item.is-removing {
+  opacity: 0;
+  max-height: 0;
+  padding: 0;
+  margin: 0;
+  border-top: none;
+}
+
+.vg-expense-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.vg-delete-btn {
+  border: none;
+  background: transparent;
+  color: var(--danger);
+  font-size: 18px;
+  cursor: pointer;
+  opacity: 0;
+  transition: 160ms ease;
+}
+
+.vg-expense-item:hover .vg-delete-btn {
+  opacity: 1;
+}
+
+.vg-empty {
+  padding: 18px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #475569;
+}
+
 .category-group {
   border: 1px solid var(--border);
   border-radius: 20px;
@@ -403,6 +569,7 @@ select:focus,
   color: var(--danger);
   font-weight: 900;
   cursor: pointer;
+  transition: 160ms ease;
 }
 
 .modal {
@@ -539,5 +706,9 @@ select:focus,
 
   .amount-control {
     grid-template-columns: auto 1fr auto;
+  }
+
+  .vg-delete-btn {
+    opacity: 1;
   }
 }
