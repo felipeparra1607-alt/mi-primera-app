@@ -569,6 +569,7 @@ select:focus,
   color: var(--danger);
   font-weight: 900;
   cursor: pointer;
+  transition: 160ms ease;
 }
 
 .modal {
