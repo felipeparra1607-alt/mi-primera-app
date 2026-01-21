@@ -389,6 +389,7 @@ const setWizardStep = (step) => {
   document.querySelectorAll(".vg-step-panel").forEach((panel) => {
     panel.classList.toggle("is-active", panel.dataset.step === String(step));
   });
+  yearSelect.value = String(currentYear);
 };
 
 const openWizard = () => {
