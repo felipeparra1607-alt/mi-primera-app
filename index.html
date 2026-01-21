@@ -98,10 +98,10 @@
 
       <div class="vg-view" id="view-budget">
         <div class="vg-budget-cta">
-          <button class="vg-link-btn" type="button" id="budget-start">Añadir presupuesto</button>
+          <button class="vg-btn vg-btn-primary" type="button" id="budget-start">Añadir presupuesto</button>
           <div class="vg-budget-actions">
-            <button class="vg-link-btn" type="button" id="budget-edit">Editar presupuesto</button>
-            <button class="vg-link-btn vg-link-danger" type="button" id="budget-disable">Desactivar presupuesto</button>
+            <button class="vg-btn vg-btn-secondary" type="button" id="budget-edit">Editar presupuesto</button>
+            <button class="vg-btn vg-btn-danger" type="button" id="budget-disable">Desactivar presupuesto</button>
           </div>
         </div>
 
@@ -109,9 +109,12 @@
           <span>Total del mes</span>
           <strong id="month-total">0,00 €</strong>
         </div>
-        <div class="vg-budget-bar" id="monthly-budget-bar" aria-hidden="true">
-          <span class="vg-budget-fill" id="monthly-budget-fill"></span>
-          <span class="vg-budget-tooltip" id="monthly-budget-tooltip"></span>
+        <div class="vg-budget-row">
+          <div class="vg-budget-bar" id="monthly-budget-bar" aria-hidden="true">
+            <span class="vg-budget-fill" id="monthly-budget-fill"></span>
+            <span class="vg-budget-tooltip" id="monthly-budget-tooltip"></span>
+          </div>
+          <span class="vg-budget-text" id="monthly-budget-text"></span>
         </div>
 
         <div class="expenses-list" id="expenses-list"></div>
@@ -138,6 +141,7 @@
 
         <div class="vg-step-panel" data-step="2">
           <h3>Presupuesto por categoría</h3>
+          <div class="vg-step-ref" id="budget-step-ref"></div>
           <div class="vg-category-inputs">
             <div class="vg-category-row">
               <span>Restaurantes</span>
@@ -165,7 +169,7 @@
             </div>
           </div>
           <div class="vg-step-actions">
-            <button class="vg-secondary-btn" type="button" id="budget-skip">Omitir</button>
+            <button class="vg-btn vg-btn-secondary" type="button" id="budget-skip">Omitir</button>
             <button class="primary-btn" type="button" id="budget-next-2">Siguiente</button>
           </div>
         </div>
@@ -177,7 +181,7 @@
             <p id="budget-summary-month"></p>
             <div id="budget-summary-categories"></div>
           </div>
-          <button class="primary-btn" type="button" id="budget-activate">Activar presupuesto</button>
+          <button class="vg-btn vg-btn-primary" type="button" id="budget-activate">Activar presupuesto</button>
         </div>
       </div>
     </section>

@@ -434,24 +434,45 @@ select:focus,
   gap: 10px;
 }
 
-.vg-link-btn {
-  border: none;
-  background: var(--muted-bg);
-  color: #1f6bff;
-  font-size: 14px;
+.vg-btn {
+  height: 44px;
+  padding: 0 18px;
+  font-size: 15px;
   font-weight: 800;
-  padding: 8px 14px;
-  border-radius: 999px;
+  border-radius: 14px;
   cursor: pointer;
   transition: 160ms ease;
 }
 
-.vg-link-btn:hover {
-  background: #e9efff;
+.vg-btn-primary {
+  border: none;
+  background: var(--primary-gradient);
+  color: #fff;
+  box-shadow: 0 10px 20px rgba(31, 107, 255, 0.2);
 }
 
-.vg-link-danger {
-  color: var(--danger);
+.vg-btn-secondary {
+  background: #fff;
+  border: 1px solid var(--border);
+  color: #1f6bff;
+}
+
+.vg-btn-danger {
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.vg-btn:hover {
+  transform: translateY(-1px);
+}
+
+.vg-budget-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  margin: -8px 0 16px;
 }
 
 .vg-budget-bar {
@@ -460,9 +481,9 @@ select:focus,
   border-radius: 999px;
   background: var(--border);
   overflow: hidden;
-  margin: -8px 0 16px;
   opacity: 0;
   pointer-events: none;
+  z-index: 2;
 }
 
 .vg-budget-bar.is-visible {
@@ -492,6 +513,7 @@ select:focus,
   opacity: 0;
   transform: translateY(6px);
   transition: 160ms ease;
+  z-index: 5;
 }
 
 .vg-budget-bar:hover .vg-budget-tooltip,
@@ -502,6 +524,13 @@ select:focus,
 
 .vg-category-budget {
   margin-top: 8px;
+}
+
+.vg-budget-text {
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+  text-align: right;
 }
 
 .vg-view {
@@ -556,6 +585,12 @@ select:focus,
   font-weight: 900;
 }
 
+.vg-step-ref {
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
 .vg-step-panel input,
 .vg-step-panel select {
   width: 100%;
@@ -584,21 +619,6 @@ select:focus,
   display: flex;
   gap: 12px;
   align-items: center;
-}
-
-.vg-secondary-btn {
-  border: 1px solid var(--border);
-  background: #fff;
-  color: #1f6bff;
-  font-weight: 800;
-  padding: 12px 18px;
-  border-radius: 16px;
-  cursor: pointer;
-  transition: 160ms ease;
-}
-
-.vg-secondary-btn:hover {
-  background: #f5f8ff;
 }
 
 .vg-summary p {
@@ -920,5 +940,14 @@ select:focus,
 
   .vg-category-budget {
     width: 120px;
+  }
+
+  .vg-budget-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .vg-budget-text {
+    text-align: left;
   }
 }

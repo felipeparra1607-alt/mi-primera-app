@@ -81,6 +81,8 @@ const budgetSummaryCategories = document.getElementById("budget-summary-categori
 const monthlyBudgetBar = document.getElementById("monthly-budget-bar");
 const monthlyBudgetFill = document.getElementById("monthly-budget-fill");
 const monthlyBudgetTooltip = document.getElementById("monthly-budget-tooltip");
+const monthlyBudgetText = document.getElementById("monthly-budget-text");
+const budgetStepRef = document.getElementById("budget-step-ref");
 
 const formatAmount = (amount) =>
   amount.toLocaleString("es-ES", {
@@ -348,6 +350,7 @@ const updateMonthlyBudgetBar = (filtered) => {
   if (!budgetState.enabled || budgetState.monthly.amount <= 0) {
     monthlyBudgetBar.classList.remove("is-visible");
     monthlyBudgetBar.setAttribute("aria-hidden", "true");
+    monthlyBudgetText.textContent = "";
     return;
   }
   const spent = filtered
@@ -357,6 +360,9 @@ const updateMonthlyBudgetBar = (filtered) => {
   monthlyBudgetFill.style.width = `${progress.width}%`;
   monthlyBudgetFill.style.background = progress.color;
   monthlyBudgetTooltip.textContent = `Has usado el ${progress.percent}% de tu presupuesto mensual`;
+  monthlyBudgetText.textContent = `${Math.round(spent)}/${Math.round(
+    budgetState.monthly.amount
+  )} ${budgetState.monthly.currency}`;
   monthlyBudgetBar.classList.add("is-visible");
   monthlyBudgetBar.setAttribute("aria-hidden", "false");
 };
@@ -369,19 +375,27 @@ const buildCategoryBudgetBar = (category, subtotal, currency) => {
   if (currency && currency !== budgetState.monthly.currency) {
     return null;
   }
+  const container = document.createElement("div");
+  container.className = "vg-budget-row vg-category-budget";
   const bar = document.createElement("div");
-  bar.className = "vg-budget-bar vg-category-budget";
+  bar.className = "vg-budget-bar";
   bar.classList.add("is-visible");
   const fill = document.createElement("span");
   fill.className = "vg-budget-fill";
   const tooltip = document.createElement("span");
   tooltip.className = "vg-budget-tooltip";
+  const text = document.createElement("span");
+  text.className = "vg-budget-text";
   const progress = getBudgetProgress(subtotal, budgetAmount);
   fill.style.width = `${progress.width}%`;
   fill.style.background = progress.color;
   tooltip.textContent = `Has usado el ${progress.percent}% del presupuesto de ${category}`;
+  text.textContent = `${Math.round(subtotal)}/${Math.round(budgetAmount)} ${
+    budgetState.monthly.currency
+  }`;
   bar.append(fill, tooltip);
-  return bar;
+  container.append(bar, text);
+  return container;
 };
 
 const setWizardStep = (step) => {
@@ -389,7 +403,11 @@ const setWizardStep = (step) => {
   document.querySelectorAll(".vg-step-panel").forEach((panel) => {
     panel.classList.toggle("is-active", panel.dataset.step === String(step));
   });
-  yearSelect.value = String(currentYear);
+  if (step === 2) {
+    budgetStepRef.textContent = `Presupuesto mensual: ${formatAmount(
+      Number(budgetMonthlyAmount.value || 0)
+    )} ${budgetMonthlyCurrency.value}`;
+  }
 };
 
 const openWizard = () => {
@@ -465,8 +483,8 @@ const setupBudgetTooltip = (bar) => {
     return;
   }
   bar.addEventListener("click", () => {
-    bar.classList.toggle("is-active");
-    setTimeout(() => bar.classList.remove("is-active"), 1600);
+    bar.classList.add("is-active");
+    setTimeout(() => bar.classList.remove("is-active"), 1500);
   });
 };
 
@@ -547,7 +565,7 @@ const renderExpenses = () => {
     );
     if (categoryBudgetBar) {
       meta.appendChild(categoryBudgetBar);
-      setupBudgetTooltip(categoryBudgetBar);
+      setupBudgetTooltip(categoryBudgetBar.querySelector(".vg-budget-bar"));
     }
 
     const chevron = document.createElement("span");
