@@ -412,7 +412,9 @@ const setWizardStep = (step) => {
 
 const openWizard = () => {
   budgetView.classList.add("is-hidden");
+  budgetWizard.style.display = "";
   budgetWizard.classList.add("is-visible");
+  budgetWizard.classList.remove("is-hidden");
   budgetWizard.setAttribute("aria-hidden", "false");
   setWizardStep(1);
 };
@@ -420,7 +422,10 @@ const openWizard = () => {
 const closeWizard = () => {
   budgetView.classList.remove("is-hidden");
   budgetWizard.classList.remove("is-visible");
+  budgetWizard.classList.add("is-hidden");
+  budgetWizard.style.display = "none";
   budgetWizard.setAttribute("aria-hidden", "true");
+  setWizardStep(1);
 };
 
 const loadBudgetIntoWizard = (budgets) => {
