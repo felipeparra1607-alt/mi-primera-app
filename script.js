@@ -523,6 +523,11 @@ const setupBudgetTooltip = (bar) => {
     bar.classList.add("is-active");
     setTimeout(() => bar.classList.remove("is-active"), 1500);
   });
+  if (step === 2) {
+    budgetStepRef.textContent = `Presupuesto mensual: ${formatAmount(
+      Number(budgetMonthlyAmount.value || 0)
+    )} ${budgetMonthlyCurrency.value}`;
+  }
 };
 
 const buildYearSeries = (expenses, year) => {
