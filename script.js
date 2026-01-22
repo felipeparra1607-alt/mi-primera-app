@@ -661,6 +661,11 @@ const renderEvolutionChart = (series) => {
     },
     options: baseOptions,
   });
+  if (step === 2) {
+    budgetStepRef.textContent = `Presupuesto mensual: ${formatAmount(
+      Number(budgetMonthlyAmount.value || 0)
+    )} ${budgetMonthlyCurrency.value}`;
+  }
 };
 
 const renderDonutChart = (expenses, year, month) => {
