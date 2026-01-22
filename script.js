@@ -47,6 +47,21 @@ const currencySymbols = {
   MXN: "$",
 };
 
+const CATEGORIES = [
+  { key: "Restaurantes", label: "Restaurantes", emoji: "🍽️" },
+  { key: "Supermercado", label: "Supermercado", emoji: "🛒" },
+  { key: "Transporte", label: "Transporte", emoji: "🚗" },
+  { key: "Gasolina", label: "Gasolina", emoji: "⛽" },
+  { key: "Ocio", label: "Ocio", emoji: "🎉" },
+  { key: "Otros", label: "Otros", emoji: "✨" },
+  { key: "Servicios", label: "Servicios", emoji: "💡" },
+  { key: "Mascota", label: "Mascota", emoji: "🐾" },
+  { key: "Niños", label: "Niños", emoji: "🧒" },
+  { key: "Empleada", label: "Empleada", emoji: "🧹" },
+];
+const CATEGORY_KEYS = new Set(CATEGORIES.map((category) => category.key));
+const CATEGORY_FALLBACK = "Otros";
+
 const tabs = document.querySelectorAll(".tab-button");
 const panels = document.querySelectorAll(".tab-panel");
 const amountDisplay = document.getElementById("amount-display");
@@ -317,17 +332,11 @@ const buildAmountLabel = (totals) => {
     .join(" · ");
 };
 
-const categoryMeta = {
-  Restaurantes: { emoji: "🍽️" },
-  Supermercado: { emoji: "🛒" },
-  Transporte: { emoji: "🚗" },
-  Gasolina: { emoji: "⛽" },
-  Ocio: { emoji: "🎉" },
-  Otros: { emoji: "✨" },
-};
-
-const getCategoryEmoji = (category) => categoryMeta[category]?.emoji ?? "✨";
-const categoryList = Object.keys(categoryMeta);
+const getCategoryEmoji = (category) =>
+  CATEGORIES.find((item) => item.key === category)?.emoji ?? "✨";
+const categoryList = CATEGORIES.map((category) => category.key);
+const normalizeCategory = (category) =>
+  CATEGORY_KEYS.has(category) ? category : CATEGORY_FALLBACK;
 const monthLabels = [
   "Ene",
   "Feb",
@@ -342,7 +351,18 @@ const monthLabels = [
   "Nov",
   "Dic",
 ];
-const chartPalette = ["#1F6BFF", "#16A34A", "#F59E0B", "#EF4444", "#8B5CF6", "#0EA5E9"];
+const chartPalette = [
+  "#1F6BFF",
+  "#16A34A",
+  "#F59E0B",
+  "#EF4444",
+  "#8B5CF6",
+  "#0EA5E9",
+  "#22D3EE",
+  "#F97316",
+  "#10B981",
+  "#A855F7",
+];
 
 let evolutionChart = null;
 let donutChart = null;
@@ -535,8 +555,9 @@ const buildYearSeries = (expenses, year) => {
     }
     const month = date.getMonth();
     totals[month] += expense.amount;
-    if (stacked[expense.category]) {
-      stacked[expense.category][month] += expense.amount;
+    const normalizedCategory = normalizeCategory(expense.category);
+    if (stacked[normalizedCategory]) {
+      stacked[normalizedCategory][month] += expense.amount;
     }
   });
   return { totals, stacked };
@@ -681,7 +702,7 @@ const renderDonutChart = (expenses, year, month) => {
           return (
             date.getFullYear() === year &&
             date.getMonth() === month &&
-            expense.category === category
+            normalizeCategory(expense.category) === category
           );
         })
         .reduce((sum, expense) => sum + expense.amount, 0);
@@ -833,10 +854,14 @@ const renderExpenses = () => {
 
   const grouped = {};
   filtered.forEach((expense) => {
-    if (!grouped[expense.category]) {
-      grouped[expense.category] = [];
+    const normalizedCategory = normalizeCategory(expense.category);
+    if (!grouped[normalizedCategory]) {
+      grouped[normalizedCategory] = [];
     }
-    grouped[expense.category].push(expense);
+    grouped[normalizedCategory].push({
+      ...expense,
+      category: normalizedCategory,
+    });
   });
 
   expensesList.innerHTML = "";

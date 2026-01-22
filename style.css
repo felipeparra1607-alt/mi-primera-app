@@ -269,6 +269,26 @@ select:focus,
   background: var(--cat-bg);
 }
 
+.cat-circle[data-color="servicios"] {
+  --cat-bg: #fff7ed;
+  background: var(--cat-bg);
+}
+
+.cat-circle[data-color="mascota"] {
+  --cat-bg: #f0fdfa;
+  background: var(--cat-bg);
+}
+
+.cat-circle[data-color="ninos"] {
+  --cat-bg: #eef2ff;
+  background: var(--cat-bg);
+}
+
+.cat-circle[data-color="empleada"] {
+  --cat-bg: #fef9c3;
+  background: var(--cat-bg);
+}
+
 .cat-circle:hover {
   transform: scale(1.08);
   box-shadow: 0 10px 20px rgba(31, 107, 255, 0.2);
