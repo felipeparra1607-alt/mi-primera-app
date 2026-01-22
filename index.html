@@ -103,34 +103,20 @@
           <div class="vg-evolution-header">
             <h3>Evolución</h3>
             <div class="vg-carousel-controls">
-              <button class="vg-carousel-btn" type="button" id="carousel-prev" aria-label="Anterior">‹</button>
-              <button class="vg-carousel-btn" type="button" id="carousel-next" aria-label="Siguiente">›</button>
+              <button class="vg-carousel-btn" type="button" id="evolution-prev" aria-label="Anterior">‹</button>
+              <button class="vg-carousel-btn" type="button" id="evolution-next" aria-label="Siguiente">›</button>
             </div>
           </div>
-          <div class="vg-carousel" id="evolution-carousel">
-            <article class="vg-card">
-              <h3>Total por mes</h3>
-              <div class="vg-chart">
-                <canvas id="chart-total"></canvas>
+          <div class="vg-card">
+            <h3 id="evolution-title">Total por mes</h3>
+            <div class="vg-chart">
+              <canvas id="evolution-chart"></canvas>
+              <div class="vg-chart-empty" id="evolution-empty">
+                Activa presupuesto para ver esta comparación
               </div>
-            </article>
-            <article class="vg-card">
-              <h3>Repartición por mes</h3>
-              <div class="vg-chart">
-                <canvas id="chart-stacked"></canvas>
-              </div>
-            </article>
-            <article class="vg-card">
-              <h3>Gasto vs Presupuesto</h3>
-              <div class="vg-chart">
-                <canvas id="chart-budget"></canvas>
-                <div class="vg-chart-empty" id="chart-budget-empty">
-                  Activa presupuesto para ver esta comparación
-                </div>
-              </div>
-            </article>
+            </div>
           </div>
-          <div class="vg-carousel-dots" id="carousel-dots"></div>
+          <div class="vg-carousel-dots" id="evolution-dots"></div>
         </section>
 
         <div class="select-field">
@@ -144,10 +130,10 @@
           </div>
           <div class="vg-donut-content">
             <div class="vg-donut-chart">
-              <canvas id="chart-donut"></canvas>
-              <div class="vg-donut-empty" id="donut-empty">Sin gastos en este mes</div>
+              <canvas id="month-donut"></canvas>
+              <div class="vg-donut-empty" id="month-donut-empty">Sin gastos en este mes</div>
             </div>
-            <div class="vg-donut-list" id="donut-list"></div>
+            <div class="vg-donut-list" id="month-donut-list"></div>
           </div>
         </section>
 

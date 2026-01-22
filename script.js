@@ -83,17 +83,15 @@ const monthlyBudgetFill = document.getElementById("monthly-budget-fill");
 const monthlyBudgetTooltip = document.getElementById("monthly-budget-tooltip");
 const monthlyBudgetText = document.getElementById("monthly-budget-text");
 const budgetStepRef = document.getElementById("budget-step-ref");
-const carousel = document.getElementById("evolution-carousel");
-const carouselPrev = document.getElementById("carousel-prev");
-const carouselNext = document.getElementById("carousel-next");
-const carouselDots = document.getElementById("carousel-dots");
-const chartTotalCanvas = document.getElementById("chart-total");
-const chartStackedCanvas = document.getElementById("chart-stacked");
-const chartBudgetCanvas = document.getElementById("chart-budget");
-const chartBudgetEmpty = document.getElementById("chart-budget-empty");
-const chartDonutCanvas = document.getElementById("chart-donut");
-const donutEmpty = document.getElementById("donut-empty");
-const donutList = document.getElementById("donut-list");
+const evolutionTitle = document.getElementById("evolution-title");
+const evolutionChartCanvas = document.getElementById("evolution-chart");
+const evolutionEmpty = document.getElementById("evolution-empty");
+const evolutionPrev = document.getElementById("evolution-prev");
+const evolutionNext = document.getElementById("evolution-next");
+const evolutionDots = document.getElementById("evolution-dots");
+const monthDonutCanvas = document.getElementById("month-donut");
+const monthDonutEmpty = document.getElementById("month-donut-empty");
+const monthDonutList = document.getElementById("month-donut-list");
 
 const formatAmount = (amount) =>
   amount.toLocaleString("es-ES", {
@@ -346,10 +344,9 @@ const monthLabels = [
 ];
 const chartPalette = ["#1F6BFF", "#16A34A", "#F59E0B", "#EF4444", "#8B5CF6", "#0EA5E9"];
 
-let chartTotal = null;
-let chartStacked = null;
-let chartBudget = null;
-let chartDonut = null;
+let evolutionChart = null;
+let donutChart = null;
+let evolutionMode = 0;
 
 const getSortMode = (category) => viewState.sortBy[category] || "date";
 
@@ -523,11 +520,6 @@ const setupBudgetTooltip = (bar) => {
     bar.classList.add("is-active");
     setTimeout(() => bar.classList.remove("is-active"), 1500);
   });
-  if (step === 2) {
-    budgetStepRef.textContent = `Presupuesto mensual: ${formatAmount(
-      Number(budgetMonthlyAmount.value || 0)
-    )} ${budgetMonthlyCurrency.value}`;
-  }
 };
 
 const buildYearSeries = (expenses, year) => {
@@ -578,67 +570,74 @@ const buildBaseOptions = () => ({
   },
 });
 
-const renderTotalChart = (series) => {
-  destroyChart(chartTotal);
-  chartTotal = new Chart(chartTotalCanvas, {
-    type: "line",
-    data: {
-      labels: monthLabels,
-      datasets: [
-        {
-          label: "Total",
-          data: series.totals,
-          borderColor: "#1F6BFF",
-          backgroundColor: "transparent",
-          tension: 0.35,
-          fill: false,
-        },
-      ],
-    },
-    options: {
-      ...buildBaseOptions(),
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: (context) => `${context.label}: ${formatAmount(context.raw ?? 0)}`,
+const renderEvolutionChart = (series) => {
+  destroyChart(evolutionChart);
+  if (!window.Chart) {
+    return;
+  }
+  evolutionEmpty.classList.remove("is-visible");
+  const baseOptions = buildBaseOptions();
+  if (evolutionMode === 0) {
+    evolutionTitle.textContent = "Total por mes";
+    evolutionChart = new Chart(evolutionChartCanvas, {
+      type: "line",
+      data: {
+        labels: monthLabels,
+        datasets: [
+          {
+            label: "Total",
+            data: series.totals,
+            borderColor: "#1F6BFF",
+            backgroundColor: "transparent",
+            tension: 0.35,
+            fill: false,
+          },
+        ],
+      },
+      options: {
+        ...baseOptions,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (context) => `${context.label}: ${formatAmount(context.raw ?? 0)}`,
+            },
           },
         },
       },
-    },
-  });
-};
-
-const renderStackedChart = (series) => {
-  destroyChart(chartStacked);
-  const datasets = categoryList.map((category, index) => ({
-    label: category,
-    data: series.stacked[category],
-    backgroundColor: chartPalette[index],
-    borderRadius: 6,
-  }));
-  chartStacked = new Chart(chartStackedCanvas, {
-    type: "bar",
-    data: { labels: monthLabels, datasets },
-    options: {
-      ...buildBaseOptions(),
-      scales: {
-        x: { stacked: true, grid: { display: false } },
-        y: { stacked: true, ticks: { callback: (value) => formatAmount(value) } },
-      },
-    },
-  });
-};
-
-const renderBudgetChart = (series) => {
-  destroyChart(chartBudget);
-  if (!budgetState.enabled || budgetState.monthly.amount <= 0) {
-    chartBudgetEmpty.classList.add("is-visible");
+    });
     return;
   }
-  chartBudgetEmpty.classList.remove("is-visible");
+
+  if (evolutionMode === 1) {
+    evolutionTitle.textContent = "Repartición por mes";
+    const datasets = categoryList.map((category, index) => ({
+      label: category,
+      data: series.stacked[category],
+      backgroundColor: chartPalette[index],
+      borderRadius: 6,
+    }));
+    evolutionChart = new Chart(evolutionChartCanvas, {
+      type: "bar",
+      data: { labels: monthLabels, datasets },
+      options: {
+        ...baseOptions,
+        scales: {
+          x: { stacked: true, grid: { display: false } },
+          y: { stacked: true, ticks: { callback: (value) => formatAmount(value) } },
+        },
+      },
+    });
+    return;
+  }
+
+  evolutionTitle.textContent = "Gasto vs Presupuesto";
+  if (!budgetState.enabled || budgetState.monthly.amount <= 0) {
+    evolutionEmpty.classList.add("is-visible");
+    return;
+  }
   const budgetLine = Array.from({ length: 12 }, () => budgetState.monthly.amount);
-  chartBudget = new Chart(chartBudgetCanvas, {
+  evolutionChart = new Chart(evolutionChartCanvas, {
     type: "line",
     data: {
       labels: monthLabels,
@@ -660,12 +659,20 @@ const renderBudgetChart = (series) => {
         },
       ],
     },
-    options: buildBaseOptions(),
+    options: baseOptions,
   });
+  if (step === 2) {
+    budgetStepRef.textContent = `Presupuesto mensual: ${formatAmount(
+      Number(budgetMonthlyAmount.value || 0)
+    )} ${budgetMonthlyCurrency.value}`;
+  }
 };
 
 const renderDonutChart = (expenses, year, month) => {
-  destroyChart(chartDonut);
+  destroyChart(donutChart);
+  if (!window.Chart) {
+    return;
+  }
   const totals = categoryList
     .map((category) => {
       const value = expenses
@@ -683,12 +690,12 @@ const renderDonutChart = (expenses, year, month) => {
     .filter((item) => item.value > 0)
     .sort((a, b) => b.value - a.value);
 
-  donutList.innerHTML = "";
+  monthDonutList.innerHTML = "";
   if (!totals.length) {
-    donutEmpty.classList.add("is-visible");
+    monthDonutEmpty.classList.add("is-visible");
     return;
   }
-  donutEmpty.classList.remove("is-visible");
+  monthDonutEmpty.classList.remove("is-visible");
   const totalValue = totals.reduce((sum, item) => sum + item.value, 0);
   const fallbackExpense = expenses.find((expense) => {
     const date = new Date(expense.date);
@@ -717,10 +724,10 @@ const renderDonutChart = (expenses, year, month) => {
     percentSpan.textContent = `${percent}%`;
     value.appendChild(percentSpan);
     row.append(meta, value);
-    donutList.appendChild(row);
+    monthDonutList.appendChild(row);
   });
 
-  chartDonut = new Chart(chartDonutCanvas, {
+  donutChart = new Chart(monthDonutCanvas, {
     type: "doughnut",
     data: {
       labels: totals.map((item) => item.category),
@@ -760,49 +767,46 @@ const renderCharts = (expenses) => {
   const selectedYear = Number(yearSelect.value);
   const selectedMonth = Number(monthSelect.value);
   const series = buildYearSeries(expenses, selectedYear);
-  renderTotalChart(series);
-  renderStackedChart(series);
-  renderBudgetChart(series);
+  renderEvolutionChart(series);
   renderDonutChart(expenses, selectedYear, selectedMonth);
 };
 
-const setupCarousel = () => {
-  if (!carousel) {
+const updateEvolutionDots = () => {
+  if (!evolutionDots) {
     return;
   }
-  const cards = Array.from(carousel.querySelectorAll(".vg-card"));
-  carouselDots.innerHTML = "";
-  cards.forEach((_, index) => {
+  evolutionDots.querySelectorAll(".vg-dot").forEach((dot, index) => {
+    dot.classList.toggle("is-active", index === evolutionMode);
+  });
+};
+
+const setupEvolution = () => {
+  if (!evolutionPrev || !evolutionNext || !evolutionDots) {
+    return;
+  }
+  evolutionDots.innerHTML = "";
+  for (let i = 0; i < 3; i += 1) {
     const dot = document.createElement("span");
     dot.className = "vg-dot";
-    if (index === 0) {
+    if (i === evolutionMode) {
       dot.classList.add("is-active");
     }
     dot.addEventListener("click", () => {
-      cards[index].scrollIntoView({ behavior: "smooth", inline: "start" });
+      evolutionMode = i;
+      renderCharts(loadExpenses());
+      updateEvolutionDots();
     });
-    carouselDots.appendChild(dot);
+    evolutionDots.appendChild(dot);
+  }
+  evolutionPrev.addEventListener("click", () => {
+    evolutionMode = (evolutionMode + 2) % 3;
+    renderCharts(loadExpenses());
+    updateEvolutionDots();
   });
-
-  const updateDots = () => {
-    const scrollLeft = carousel.scrollLeft;
-    const width = carousel.clientWidth;
-    const index = Math.round(scrollLeft / width);
-    carouselDots.querySelectorAll(".vg-dot").forEach((dot, idx) => {
-      dot.classList.toggle("is-active", idx === index);
-    });
-  };
-
-  carousel.addEventListener("scroll", () => {
-    requestAnimationFrame(updateDots);
-  });
-
-  carouselPrev.addEventListener("click", () => {
-    carousel.scrollBy({ left: -carousel.clientWidth, behavior: "smooth" });
-  });
-
-  carouselNext.addEventListener("click", () => {
-    carousel.scrollBy({ left: carousel.clientWidth, behavior: "smooth" });
+  evolutionNext.addEventListener("click", () => {
+    evolutionMode = (evolutionMode + 1) % 3;
+    renderCharts(loadExpenses());
+    updateEvolutionDots();
   });
 };
 
@@ -1239,7 +1243,7 @@ const init = () => {
   setupDateModal();
   setupFilters();
   setupBudgets();
-  setupCarousel();
+  setupEvolution();
 
   if (window.Chart) {
     Chart.defaults.font.family =

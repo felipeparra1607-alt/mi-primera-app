@@ -509,23 +509,12 @@ select:focus,
   background: var(--muted-bg);
 }
 
-.vg-carousel {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(260px, 1fr);
-  gap: 16px;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  padding-bottom: 8px;
-}
-
 .vg-card {
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 18px;
   padding: 16px;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
-  scroll-snap-align: start;
 }
 
 .vg-card h3 {
