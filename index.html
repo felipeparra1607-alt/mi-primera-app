@@ -1,198 +1,255 @@
 <!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Control de Gastos</title>
-    <!--
-      Archivo principal HTML:
-      - Define la estructura de la app (título, formulario y lista).
-      - Conecta el CSS y el JavaScript.
-    -->
-    <link rel="stylesheet" href="style.css" />
-  </head>
-  <body>
-    <main class="card">
-      <header class="card__header brand">
-        <h1 class="title">Fluxo</h1>
-      </header>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fluxo · Control de gastos</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="app-header">
+      <h1>Fluxo</h1>
+    </header>
 
-      <nav class="tabs" aria-label="Cambiar vista">
-        <button class="tab-button is-active" type="button" data-view="add">
-          Añadir gasto
-        </button>
-        <button class="tab-button" type="button" data-view="view">
-          Ver gastos
-        </button>
-      </nav>
+    <section class="tabs" role="tablist" aria-label="Navegación principal">
+      <button class="tab-button is-active" type="button" role="tab" aria-selected="true" data-tab="add">
+        Añadir gasto
+      </button>
+      <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab="view">
+        Ver gastos
+      </button>
+    </section>
 
-      <section class="section is-visible" id="addView">
-        <h2>Añadir gasto</h2>
-        <form class="expense-form" id="expenseForm">
-          <label class="field">
-            <span>Concepto</span>
-            <input
-              type="text"
-              id="conceptInput"
-              name="concept"
-              placeholder="EJ: SUPERMERCADO"
-              required
-            />
-          </label>
+    <section class="tab-panel is-visible" id="tab-add" role="tabpanel">
+      <h2>Añadir gasto</h2>
 
-          <label class="field">
-            <span>Cantidad (€)</span>
-            <!-- Contador con input numérico editable. -->
-            <div class="counter">
-              <button type="button" class="counter__button" id="decreaseAmount">
-                −
-              </button>
-              <input
-                type="text"
-                id="amountInput"
-                name="amount"
-                inputmode="decimal"
-                value="0,00"
-                required
-              />
-              <button type="button" class="counter__button" id="increaseAmount">
-                +
-              </button>
-              <button type="button" class="currency-pill" id="currencyButton">
-                EUR €
-              </button>
-            </div>
-          </label>
+      <div class="field">
+        <label for="concept">CONCEPTO</label>
+        <input id="concept" name="concept" type="text" placeholder="EJ: SUPERMERCADO" autocomplete="off" />
+      </div>
 
-          <div class="field">
-            <span>Categoría</span>
-            <!-- Grid de categorías con selección visual. -->
-            <div class="category-grid" id="categoryGrid">
-              <div class="category-card" data-category="Restaurantes">
-                <button type="button" class="cat-emoji">🍽️</button>
-                <span>Restaurantes</span>
-              </div>
-              <div class="category-card" data-category="Supermercado">
-                <button type="button" class="cat-emoji">🛒</button>
-                <span>Supermercado</span>
-              </div>
-              <div class="category-card" data-category="Transporte">
-                <button type="button" class="cat-emoji">🚗</button>
-                <span>Transporte</span>
-              </div>
-              <div class="category-card" data-category="Gasolina">
-                <button type="button" class="cat-emoji">⛽</button>
-                <span>Gasolina</span>
-              </div>
-              <div class="category-card" data-category="Ocio">
-                <button type="button" class="cat-emoji">🎉</button>
-                <span>Ocio</span>
-              </div>
-              <div class="category-card" data-category="Otros">
-                <button type="button" class="cat-emoji">✨</button>
-                <span>Otros</span>
-              </div>
-            </div>
-            <!-- Mantenemos el select para la lógica actual. -->
-            <select id="categoryInput" name="category" class="visually-hidden">
-              <option value="Restaurantes">Restaurantes</option>
-              <option value="Supermercado">Supermercado</option>
-              <option value="Transporte">Transporte</option>
-              <option value="Gasolina">Gasolina</option>
-              <option value="Ocio">Ocio</option>
-              <option value="Otros">Otros</option>
-            </select>
+      <div class="field">
+        <label>CANTIDAD</label>
+        <div class="amount-control">
+          <button class="amount-btn" type="button" data-action="decrement" aria-label="Restar">–</button>
+          <div class="amount-display" id="amount-display" role="button" tabindex="0" aria-label="Editar cantidad">
+            0,00
           </div>
-
-          <div class="field">
-            <span>Fecha</span>
-            <!-- Botón que abre el modal de fecha. -->
-            <button type="button" class="date-display" id="dateDisplay"></button>
-            <input type="date" id="dateInput" name="date" required hidden />
-          </div>
-
-          <!-- Modal de fecha simple con atajos. -->
-          <div class="modal" id="dateModal" aria-hidden="true">
-            <div class="modal__content" role="dialog" aria-modal="true">
-              <h3>Selecciona una fecha</h3>
-              <div class="modal__actions">
-                <button type="button" class="chip" id="shortcutToday">Hoy</button>
-                <button type="button" class="chip" id="shortcutYesterday">
-                  Ayer
-                </button>
-              </div>
-              <div class="date-picker">
-                <button type="button" class="date-part" id="dayButton">Día</button>
-                <button type="button" class="date-part" id="monthButton">
-                  Mes
-                </button>
-                <button type="button" class="date-part" id="yearButton">
-                  Año
-                </button>
-              </div>
-              <button type="button" class="primary-button" id="closeDateModal">
-                Listo
-              </button>
-            </div>
-          </div>
-
-          <button type="submit" class="primary-button" id="submitExpense">
-            Añadir gasto
+          <button class="amount-btn" type="button" data-action="increment" aria-label="Sumar">+</button>
+          <button class="currency-pill" type="button" id="currency-pill" aria-label="Seleccionar divisa">
+            EUR €
           </button>
-          <p class="helper" id="formMessage" aria-live="polite"></p>
-        </form>
-      </section>
+        </div>
+        <input class="amount-input" id="amount-input" type="number" inputmode="decimal" min="0" step="0.01" aria-label="Cantidad" />
+      </div>
 
-      <!-- Modal simple para seleccionar divisa (solo visual). -->
-      <div class="modal" id="currencyModal" aria-hidden="true">
-        <div class="modal__content" role="dialog" aria-modal="true">
-          <h3>Selecciona divisa</h3>
-          <div class="currency-grid" id="currencyOptions"></div>
-          <button type="button" class="primary-button" id="closeCurrencyModal">
-            Listo
-          </button>
+      <div class="field">
+        <label>CATEGORÍA</label>
+        <div class="categories">
+          <div class="cat-card" data-category="Restaurantes">
+            <button class="cat-circle" type="button" aria-label="Restaurantes" data-color="restaurantes">🍽️</button>
+            <div class="cat-name">RESTAURANTES</div>
+          </div>
+          <div class="cat-card" data-category="Supermercado">
+            <button class="cat-circle" type="button" aria-label="Supermercado" data-color="supermercado">🛒</button>
+            <div class="cat-name">SUPERMERCADO</div>
+          </div>
+          <div class="cat-card" data-category="Transporte">
+            <button class="cat-circle" type="button" aria-label="Transporte" data-color="transporte">🚗</button>
+            <div class="cat-name">TRANSPORTE</div>
+          </div>
+          <div class="cat-card" data-category="Gasolina">
+            <button class="cat-circle" type="button" aria-label="Gasolina" data-color="gasolina">⛽</button>
+            <div class="cat-name">GASOLINA</div>
+          </div>
+          <div class="cat-card" data-category="Ocio">
+            <button class="cat-circle" type="button" aria-label="Ocio" data-color="ocio">🎉</button>
+            <div class="cat-name">OCIO</div>
+          </div>
+          <div class="cat-card" data-category="Otros">
+            <button class="cat-circle" type="button" aria-label="Otros" data-color="otros">✨</button>
+            <div class="cat-name">OTROS</div>
+          </div>
         </div>
       </div>
 
-      <section class="expense-list section" id="viewExpenses" hidden>
-        <h2>Ver gastos</h2>
-        <div class="yearly-chart" aria-label="Gráfico anual por mes">
-          <div class="yearly-chart__labels">
-            <span>Ene</span>
-            <span>Feb</span>
-            <span>Mar</span>
-            <span>Abr</span>
-            <span>May</span>
-            <span>Jun</span>
-            <span>Jul</span>
-            <span>Ago</span>
-            <span>Sep</span>
-            <span>Oct</span>
-            <span>Nov</span>
-            <span>Dic</span>
+      <div class="field">
+        <label>FECHA</label>
+        <button class="date-display" type="button" id="date-display" aria-label="Seleccionar fecha"></button>
+      </div>
+
+      <button class="primary-btn" type="button" id="save-expense">Añadir gasto</button>
+    </section>
+
+    <section class="tab-panel" id="tab-view" role="tabpanel">
+      <h2>Ver gastos</h2>
+
+      <div class="vg-view" id="view-budget">
+        <div class="vg-budget-cta" id="budget-cta">
+          <button class="vg-btn vg-btn-primary" type="button" id="budget-start">Añadir presupuesto</button>
+          <div class="vg-budget-actions">
+            <button class="vg-btn vg-btn-secondary" type="button" id="budget-edit">Editar presupuesto</button>
+            <button class="vg-btn vg-btn-danger" type="button" id="budget-disable">Desactivar presupuesto</button>
           </div>
-          <div class="yearly-chart__bars" id="yearlyBars"></div>
-        </div>
-        <div class="filters">
-          <label class="field">
-            <span>Año</span>
-            <select id="yearSelect"></select>
-          </label>
-          <label class="field">
-            <span>Mes</span>
-            <select id="monthSelect"></select>
-          </label>
         </div>
 
-        <div class="summary">
-          <div class="total" id="monthlyTotal">Total (---- - --): €0.00</div>
+        <div class="select-field">
+          <label for="year-select">AÑO</label>
+          <select id="year-select"></select>
         </div>
 
-        <div class="category-list" id="categoryList"></div>
-      </section>
-    </main>
+        <section class="vg-evolution">
+          <div class="vg-evolution-header">
+            <h3>Evolución</h3>
+            <div class="vg-carousel-controls">
+              <button class="vg-carousel-btn" type="button" id="evolution-prev" aria-label="Anterior">‹</button>
+              <button class="vg-carousel-btn" type="button" id="evolution-next" aria-label="Siguiente">›</button>
+            </div>
+          </div>
+          <div class="vg-card">
+            <h3 id="evolution-title">Total por mes</h3>
+            <div class="vg-chart">
+              <canvas id="evolution-chart"></canvas>
+              <div class="vg-chart-empty" id="evolution-empty">
+                Activa presupuesto para ver esta comparación
+              </div>
+            </div>
+          </div>
+          <div class="vg-carousel-dots" id="evolution-dots"></div>
+        </section>
 
-    <!-- Archivo JavaScript con la lógica de la app. -->
-    <script src="script.js"></script>
-  </body>
+        <div class="select-field">
+          <label for="month-select">MES</label>
+          <select id="month-select"></select>
+        </div>
+
+        <section class="vg-donut">
+          <div class="vg-donut-header">
+            <h3>Categorías del mes</h3>
+          </div>
+          <div class="vg-donut-content">
+            <div class="vg-donut-chart">
+              <canvas id="month-donut"></canvas>
+              <div class="vg-donut-empty" id="month-donut-empty">Sin gastos en este mes</div>
+            </div>
+            <div class="vg-donut-list" id="month-donut-list"></div>
+          </div>
+        </section>
+
+        <div class="monthly-total">
+          <span>Total del mes</span>
+          <strong id="month-total">0,00 €</strong>
+        </div>
+        <div class="vg-budget-row">
+          <div class="vg-budget-bar" id="monthly-budget-bar" aria-hidden="true">
+            <span class="vg-budget-fill" id="monthly-budget-fill"></span>
+            <span class="vg-budget-tooltip" id="monthly-budget-tooltip"></span>
+          </div>
+          <span class="vg-budget-text" id="monthly-budget-text"></span>
+        </div>
+
+        <div class="expenses-list" id="expenses-list"></div>
+      </div>
+
+      <div class="vg-wizard" id="budget-wizard" aria-hidden="true">
+        <button class="vg-back-btn" type="button" id="budget-back">← Volver</button>
+        <div class="vg-step">Paso <span id="budget-step">1</span> de 3</div>
+
+        <div class="vg-step-panel is-active" data-step="1">
+          <h3>Presupuesto mensual</h3>
+          <label for="budget-month-amount">Cantidad mensual</label>
+          <input id="budget-month-amount" type="number" inputmode="decimal" min="0" step="0.01" />
+          <label for="budget-month-currency">Divisa</label>
+          <select id="budget-month-currency">
+            <option value="EUR">EUR</option>
+            <option value="USD">USD</option>
+            <option value="GBP">GBP</option>
+            <option value="COP">COP</option>
+            <option value="MXN">MXN</option>
+          </select>
+          <button class="primary-btn" type="button" id="budget-next-1">Siguiente</button>
+        </div>
+
+        <div class="vg-step-panel" data-step="2">
+          <h3>Presupuesto por categoría</h3>
+          <div class="vg-step-ref" id="budget-step-ref"></div>
+          <div class="vg-category-inputs">
+            <div class="vg-category-row">
+              <span>Restaurantes</span>
+              <input type="number" inputmode="decimal" min="0" step="0.01" data-category-budget="Restaurantes" />
+            </div>
+            <div class="vg-category-row">
+              <span>Supermercado</span>
+              <input type="number" inputmode="decimal" min="0" step="0.01" data-category-budget="Supermercado" />
+            </div>
+            <div class="vg-category-row">
+              <span>Transporte</span>
+              <input type="number" inputmode="decimal" min="0" step="0.01" data-category-budget="Transporte" />
+            </div>
+            <div class="vg-category-row">
+              <span>Gasolina</span>
+              <input type="number" inputmode="decimal" min="0" step="0.01" data-category-budget="Gasolina" />
+            </div>
+            <div class="vg-category-row">
+              <span>Ocio</span>
+              <input type="number" inputmode="decimal" min="0" step="0.01" data-category-budget="Ocio" />
+            </div>
+            <div class="vg-category-row">
+              <span>Otros</span>
+              <input type="number" inputmode="decimal" min="0" step="0.01" data-category-budget="Otros" />
+            </div>
+          </div>
+          <div class="vg-step-actions">
+            <button class="vg-btn vg-btn-secondary" type="button" id="budget-skip">Omitir</button>
+            <button class="primary-btn" type="button" id="budget-next-2">Siguiente</button>
+          </div>
+        </div>
+
+        <div class="vg-step-panel" data-step="3">
+          <h3>Resumen del presupuesto</h3>
+          <div class="vg-summary">
+            <p id="budget-summary-month"></p>
+            <div id="budget-summary-categories"></div>
+          </div>
+          <button class="vg-btn vg-btn-primary" type="button" id="budget-activate">Activar presupuesto</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal" id="currency-modal" aria-hidden="true">
+    <div class="modal-overlay" data-close="currency"></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="currency-title">
+      <h3 id="currency-title">Selecciona una divisa</h3>
+      <div class="currency-options">
+        <button type="button" data-currency="EUR">EUR €</button>
+        <button type="button" data-currency="USD">USD $</button>
+        <button type="button" data-currency="GBP">GBP £</button>
+        <button type="button" data-currency="COP">COP $</button>
+        <button type="button" data-currency="MXN">MXN $</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="date-modal" aria-hidden="true">
+    <div class="modal-overlay" data-close="date"></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="date-title">
+      <h3 id="date-title">Selecciona una fecha</h3>
+      <div class="quick-pills">
+        <button type="button" class="pill" data-quick="today">Hoy</button>
+        <button type="button" class="pill" data-quick="yesterday">Ayer</button>
+      </div>
+      <div class="date-pills" id="date-pills"></div>
+      <button class="primary-btn" type="button" id="confirm-date">Listo</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <span>✅ Gasto guardado</span>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="script.js"></script>
+</body>
 </html>
