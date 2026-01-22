@@ -1,742 +1,1425 @@
-/*
-  Archivo de lógica:
-  - Maneja el formulario, valida datos y actualiza la lista.
-  - Guarda y lee los gastos desde localStorage.
-  - Calcula el total del mes actual.
-*/
+const STORAGE_KEY = "fluxo_expenses";
+const BUDGET_KEY = "fluxo_budgets";
+const BUDGET_V2_KEY = "fluxo_budgets_v2";
 
-const STORAGE_KEY = "expense-tracker-items";
-
-const expenseForm = document.getElementById("expenseForm");
-const conceptInput = document.getElementById("conceptInput");
-const amountInput = document.getElementById("amountInput");
-const categoryInput = document.getElementById("categoryInput");
-const dateInput = document.getElementById("dateInput");
-const decreaseAmount = document.getElementById("decreaseAmount");
-const increaseAmount = document.getElementById("increaseAmount");
-const categoryGrid = document.getElementById("categoryGrid");
-const dateDisplay = document.getElementById("dateDisplay");
-const dateModal = document.getElementById("dateModal");
-const shortcutToday = document.getElementById("shortcutToday");
-const shortcutYesterday = document.getElementById("shortcutYesterday");
-const closeDateModal = document.getElementById("closeDateModal");
-const submitExpense = document.getElementById("submitExpense");
-const currencyButton = document.getElementById("currencyButton");
-const currencyModal = document.getElementById("currencyModal");
-const currencyOptions = document.getElementById("currencyOptions");
-const closeCurrencyModal = document.getElementById("closeCurrencyModal");
-const dayButton = document.getElementById("dayButton");
-const monthButton = document.getElementById("monthButton");
-const yearButton = document.getElementById("yearButton");
-const yearSelect = document.getElementById("yearSelect");
-const monthSelect = document.getElementById("monthSelect");
-const yearlyBars = document.getElementById("yearlyBars");
-const categoryList = document.getElementById("categoryList");
-const monthlyTotal = document.getElementById("monthlyTotal");
-const formMessage = document.getElementById("formMessage");
-const tabButtons = document.querySelectorAll(".tab-button");
-const addView = document.getElementById("addView");
-const viewExpenses = document.getElementById("viewExpenses");
-
-let expenses = [];
-
-const today = new Date();
-const currentMonthKey = today.toISOString().slice(0, 7);
-const currentYear = today.getFullYear().toString();
-const currentMonthIndex = today.getMonth();
-let selectedMonthKey = currentMonthKey;
-
-// Lista de meses en español para el selector y el texto del total.
-const MONTHS = [
-  "Enero",
-  "Febrero",
-  "Marzo",
-  "Abril",
-  "Mayo",
-  "Junio",
-  "Julio",
-  "Agosto",
-  "Septiembre",
-  "Octubre",
-  "Noviembre",
-  "Diciembre",
-];
-
-const CATEGORIES = [
-  "Restaurantes",
-  "Supermercado",
-  "Transporte",
-  "Gasolina",
-  "Ocio",
-  "Otros",
-];
-
-const CURRENCIES = ["EUR €", "USD $", "GBP £", "COP $", "MXN $"];
-let selectedCurrency = CURRENCIES[0];
-
-const formatCurrency = (value) =>
-  new Intl.NumberFormat("es-ES", {
-    style: "currency",
-    currency: "EUR",
-  }).format(value);
-
-const parseAmount = (value) => {
-  const normalized = value.replace(/\./g, "").replace(",", ".");
-  const parsed = parseFloat(normalized);
-  return Number.isNaN(parsed) ? 0 : parsed;
+const state = {
+  amount: 0,
+  currency: "EUR",
+  category: null,
+  date: new Date(),
+  dateSelection: {
+    day: new Date().getDate(),
+    month: new Date().getMonth(),
+    year: new Date().getFullYear(),
+  },
 };
 
-const formatAmountInput = (value) =>
-  value.toLocaleString("es-ES", {
+const viewState = {
+  openCategories: new Set(),
+  sortBy: {},
+};
+
+const budgetState = {
+  currency: "EUR",
+  mode: "template",
+  template: { enabled: false, monthlyTotal: 0, categories: {} },
+  overrides: {},
+};
+
+const monthNames = [
+  "ene",
+  "feb",
+  "mar",
+  "abr",
+  "may",
+  "jun",
+  "jul",
+  "ago",
+  "sep",
+  "oct",
+  "nov",
+  "dic",
+];
+
+const currencySymbols = {
+  EUR: "€",
+  USD: "$",
+  GBP: "£",
+  COP: "$",
+  MXN: "$",
+};
+
+const CATEGORIES = [
+  { key: "Restaurantes", label: "Restaurantes", emoji: "🍽️" },
+  { key: "Supermercado", label: "Supermercado", emoji: "🛒" },
+  { key: "Transporte", label: "Transporte", emoji: "🚗" },
+  { key: "Gasolina", label: "Gasolina", emoji: "⛽" },
+  { key: "Ocio", label: "Ocio", emoji: "🎉" },
+  { key: "Otros", label: "Otros", emoji: "✨" },
+  { key: "Servicios", label: "Servicios", emoji: "💡" },
+  { key: "Mascota", label: "Mascota", emoji: "🐾" },
+  { key: "Niños", label: "Niños", emoji: "🧒" },
+  { key: "Empleada", label: "Empleada", emoji: "🧹" },
+];
+const CATEGORY_KEYS = new Set(CATEGORIES.map((category) => category.key));
+const CATEGORY_FALLBACK = "Otros";
+
+const tabs = document.querySelectorAll(".tab-button");
+const panels = document.querySelectorAll(".tab-panel");
+const amountDisplay = document.getElementById("amount-display");
+const amountInput = document.getElementById("amount-input");
+const currencyPill = document.getElementById("currency-pill");
+const currencyModal = document.getElementById("currency-modal");
+const dateModal = document.getElementById("date-modal");
+const dateDisplay = document.getElementById("date-display");
+const datePills = document.getElementById("date-pills");
+const confirmDateBtn = document.getElementById("confirm-date");
+const toast = document.getElementById("toast");
+const saveBtn = document.getElementById("save-expense");
+const conceptInput = document.getElementById("concept");
+const yearSelect = document.getElementById("year-select");
+const monthSelect = document.getElementById("month-select");
+const expensesList = document.getElementById("expenses-list");
+const budgetView = document.getElementById("view-budget");
+const budgetWizard = document.getElementById("budget-wizard");
+const budgetStartBtn = document.getElementById("budget-start");
+const budgetEditBtn = document.getElementById("budget-edit");
+const budgetDisableBtn = document.getElementById("budget-disable");
+const budgetBackBtn = document.getElementById("budget-back");
+const budgetStepLabel = document.getElementById("budget-step");
+const budgetNext1 = document.getElementById("budget-next-1");
+const budgetNext2 = document.getElementById("budget-next-2");
+const budgetSkip = document.getElementById("budget-skip");
+const budgetActivate = document.getElementById("budget-activate");
+const budgetMonthlyAmount = document.getElementById("budget-month-amount");
+const budgetMonthlyCurrency = document.getElementById("budget-month-currency");
+const budgetSummaryMonth = document.getElementById("budget-summary-month");
+const budgetSummaryCategories = document.getElementById("budget-summary-categories");
+const monthlyBudgetBar = document.getElementById("monthly-budget-bar");
+const monthlyBudgetFill = document.getElementById("monthly-budget-fill");
+const monthlyBudgetTooltip = document.getElementById("monthly-budget-tooltip");
+const monthlyBudgetText = document.getElementById("monthly-budget-text");
+const budgetStepRef = document.getElementById("budget-step-ref");
+const budgetStepMonth = document.getElementById("budget-step-month");
+const budgetModeTemplate = document.getElementById("budget-mode-template");
+const budgetModeMonthly = document.getElementById("budget-mode-monthly");
+const evolutionTitle = document.getElementById("evolution-title");
+const evolutionChartCanvas = document.getElementById("evolution-chart");
+const evolutionEmpty = document.getElementById("evolution-empty");
+const evolutionPrev = document.getElementById("evolution-prev");
+const evolutionNext = document.getElementById("evolution-next");
+const evolutionDots = document.getElementById("evolution-dots");
+const monthDonutCanvas = document.getElementById("month-donut");
+const monthDonutEmpty = document.getElementById("month-donut-empty");
+const monthDonutList = document.getElementById("month-donut-list");
+
+const formatAmount = (amount) =>
+  amount.toLocaleString("es-ES", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
 
-const formatDateLabel = (dateValue) => {
-  if (!dateValue) {
-    return "Selecciona una fecha";
-  }
-
-  const parsed = new Date(`${dateValue}T00:00:00`);
-  const todayDate = new Date();
-  const yesterdayDate = new Date();
-  yesterdayDate.setDate(todayDate.getDate() - 1);
-
-  const sameDay = (a, b) =>
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate();
-
-  const labelPrefix = sameDay(parsed, todayDate)
-    ? "Hoy"
-    : sameDay(parsed, yesterdayDate)
-      ? "Ayer"
-      : "Fecha";
-
-  const formatted = new Intl.DateTimeFormat("es-ES", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(parsed);
-
-  return `${labelPrefix} · ${formatted}`;
+const formatDateText = (date) => {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = monthNames[date.getMonth()];
+  const year = date.getFullYear();
+  return `${day} ${month} ${year}`;
 };
 
-const getSelectedMonthKey = () => selectedMonthKey || currentMonthKey;
+const formatDisplayDate = (date) => {
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  const dateKey = date.toISOString().slice(0, 10);
+  if (dateKey === today.toISOString().slice(0, 10)) {
+    return `Hoy · ${formatDateText(date)}`;
+  }
+  if (dateKey === yesterday.toISOString().slice(0, 10)) {
+    return `Ayer · ${formatDateText(date)}`;
+  }
+  return formatDateText(date);
+};
 
-const buildMonthKey = (year, monthIndex) =>
-  `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+const toggleModal = (modal, show) => {
+  modal.classList.toggle("is-visible", show);
+  modal.setAttribute("aria-hidden", String(!show));
+};
 
-const getActivePeriodLabel = () => {
-  const [year, month] = getSelectedMonthKey().split("-");
-  const monthIndex = Math.max(0, Number(month) - 1);
-  const monthName = MONTHS[monthIndex] ?? "Mes";
+const updateAmountDisplay = () => {
+  amountDisplay.textContent = formatAmount(state.amount);
+};
 
-  return `${year} - ${monthName}`;
+const updateCurrency = (currency) => {
+  state.currency = currency;
+  currencyPill.textContent = `${currency} ${currencySymbols[currency]}`;
+};
+
+const updateDateDisplay = () => {
+  dateDisplay.textContent = formatDisplayDate(state.date);
+};
+
+const loadExpenses = () => {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  try {
+    return raw ? JSON.parse(raw) : [];
+  } catch (error) {
+    return [];
+  }
+};
+
+const saveExpenses = (expenses) => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
+};
+
+const migrateBudgets = () => {
+  const existingV2 = localStorage.getItem(BUDGET_V2_KEY);
+  if (existingV2) {
+    return;
+  }
+  const legacyRaw = localStorage.getItem(BUDGET_KEY);
+  if (!legacyRaw) {
+    return;
+  }
+  try {
+    const legacy = JSON.parse(legacyRaw);
+    const migrated = {
+      currency: legacy.monthly?.currency || "EUR",
+      mode: "template",
+      template: {
+        enabled: Boolean(legacy.enabled),
+        monthlyTotal: Number(legacy.monthly?.amount || 0),
+        categories: legacy.categories || {},
+      },
+      overrides: {},
+    };
+    localStorage.setItem(BUDGET_V2_KEY, JSON.stringify(migrated));
+  } catch (error) {
+    return;
+  }
+};
+
+const loadBudgets = () => {
+  migrateBudgets();
+  const raw = localStorage.getItem(BUDGET_V2_KEY);
+  if (!raw) {
+    return { ...budgetState };
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      currency: parsed.currency || "EUR",
+      mode: parsed.mode === "monthly" ? "monthly" : "template",
+      template: {
+        enabled: Boolean(parsed.template?.enabled),
+        monthlyTotal: Number(parsed.template?.monthlyTotal || 0),
+        categories: parsed.template?.categories || {},
+      },
+      overrides: parsed.overrides || {},
+    };
+  } catch (error) {
+    return { ...budgetState };
+  }
+};
+
+const saveBudgets = (budgets) => {
+  localStorage.setItem(BUDGET_V2_KEY, JSON.stringify(budgets));
+};
+
+const showToast = () => {
+  toast.classList.add("is-visible");
+  setTimeout(() => toast.classList.remove("is-visible"), 1400);
+};
+
+const setCategory = (category, button) => {
+  state.category = category;
+  document.querySelectorAll(".cat-card").forEach((card) => {
+    card.classList.toggle("selected", card.dataset.category === category);
+  });
+  button.blur();
+};
+
+const openCurrencyModal = () => toggleModal(currencyModal, true);
+const closeCurrencyModal = () => toggleModal(currencyModal, false);
+const openDateModal = () => toggleModal(dateModal, true);
+const closeDateModal = () => toggleModal(dateModal, false);
+
+const createPill = (label, value, type) => {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "pill";
+  button.textContent = label;
+  button.dataset.value = value;
+  button.dataset.type = type;
+  return button;
+};
+
+const renderDatePills = () => {
+  datePills.innerHTML = "";
+  const dayWrapper = document.createElement("div");
+  dayWrapper.className = "date-group";
+  const monthWrapper = document.createElement("div");
+  monthWrapper.className = "date-group";
+  const yearWrapper = document.createElement("div");
+  yearWrapper.className = "date-group";
+
+  const dayLabel = document.createElement("span");
+  dayLabel.textContent = "Día";
+  dayLabel.className = "group-label";
+  const monthLabel = document.createElement("span");
+  monthLabel.textContent = "Mes";
+  monthLabel.className = "group-label";
+  const yearLabel = document.createElement("span");
+  yearLabel.textContent = "Año";
+  yearLabel.className = "group-label";
+
+  const dayRow = document.createElement("div");
+  dayRow.className = "date-pills";
+  for (let day = 1; day <= 31; day += 1) {
+    const button = createPill(String(day), String(day), "day");
+    if (day === state.dateSelection.day) {
+      button.classList.add("is-active");
+    }
+    dayRow.appendChild(button);
+  }
+
+  const monthRow = document.createElement("div");
+  monthRow.className = "date-pills";
+  monthNames.forEach((name, index) => {
+    const label = name.charAt(0).toUpperCase() + name.slice(1);
+    const button = createPill(label, String(index), "month");
+    if (index === state.dateSelection.month) {
+      button.classList.add("is-active");
+    }
+    monthRow.appendChild(button);
+  });
+
+  const yearRow = document.createElement("div");
+  yearRow.className = "date-pills";
+  const currentYear = new Date().getFullYear();
+  for (let year = currentYear - 5; year <= currentYear + 1; year += 1) {
+    const button = createPill(String(year), String(year), "year");
+    if (year === state.dateSelection.year) {
+      button.classList.add("is-active");
+    }
+    yearRow.appendChild(button);
+  }
+
+  dayWrapper.append(dayLabel, dayRow);
+  monthWrapper.append(monthLabel, monthRow);
+  yearWrapper.append(yearLabel, yearRow);
+  datePills.append(dayWrapper, monthWrapper, yearWrapper);
+};
+
+const updateDateSelection = (type, value) => {
+  if (type === "day") {
+    state.dateSelection.day = Number(value);
+  }
+  if (type === "month") {
+    state.dateSelection.month = Number(value);
+  }
+  if (type === "year") {
+    state.dateSelection.year = Number(value);
+  }
+};
+
+const buildDateFromSelection = () => {
+  const { day, month, year } = state.dateSelection;
+  const candidate = new Date(year, month, day);
+  if (candidate.getMonth() !== month) {
+    return new Date(year, month + 1, 0);
+  }
+  return candidate;
+};
+
+const buildYearOptions = (expenses) => {
+  const years = new Set(expenses.map((item) => Number(item.date.slice(0, 4))));
+  const currentYear = new Date().getFullYear();
+  years.add(currentYear);
+  const sorted = Array.from(years).sort((a, b) => b - a);
+  yearSelect.innerHTML = "";
+  sorted.forEach((year) => {
+    const option = document.createElement("option");
+    option.value = String(year);
+    option.textContent = String(year);
+    yearSelect.appendChild(option);
+  });
+  yearSelect.value = String(currentYear);
 };
 
 const buildMonthOptions = () => {
   monthSelect.innerHTML = "";
-  MONTHS.forEach((monthName, index) => {
+  monthNames.forEach((name, index) => {
     const option = document.createElement("option");
-    option.value = index.toString();
-    option.textContent = monthName;
+    option.value = String(index);
+    option.textContent = name.charAt(0).toUpperCase() + name.slice(1);
     monthSelect.appendChild(option);
   });
+  monthSelect.value = String(new Date().getMonth());
 };
 
-const buildYearOptions = () => {
-  const years = new Set([currentYear]);
+const buildAmountLabel = (totals) => {
+  const entries = Object.entries(totals);
+  if (!entries.length) {
+    return "0,00 €";
+  }
+  return entries
+    .map(([currency, value]) => `${formatAmount(value)} ${currencySymbols[currency]}`)
+    .join(" · ");
+};
+
+const getCategoryEmoji = (category) =>
+  CATEGORIES.find((item) => item.key === category)?.emoji ?? "✨";
+const categoryList = CATEGORIES.map((category) => category.key);
+const normalizeCategory = (category) =>
+  CATEGORY_KEYS.has(category) ? category : CATEGORY_FALLBACK;
+const monthLabels = [
+  "Ene",
+  "Feb",
+  "Mar",
+  "Abr",
+  "May",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dic",
+];
+const chartPalette = [
+  "#1F6BFF",
+  "#16A34A",
+  "#F59E0B",
+  "#EF4444",
+  "#8B5CF6",
+  "#0EA5E9",
+  "#22D3EE",
+  "#F97316",
+  "#10B981",
+  "#A855F7",
+];
+
+let evolutionChart = null;
+let donutChart = null;
+let evolutionMode = 0;
+
+const getSelectedYearMonth = () => {
+  const year = yearSelect.value;
+  const monthIndex = String(Number(monthSelect.value) + 1).padStart(2, "0");
+  return `${year}-${monthIndex}`;
+};
+
+const getActiveBudgetForMonth = (yyyyMM) => {
+  if (budgetState.mode === "monthly") {
+    const override = budgetState.overrides?.[yyyyMM];
+    if (override?.enabled) {
+      return {
+        enabled: true,
+        monthlyTotal: Number(override.monthlyTotal || 0),
+        categories: override.categories || {},
+        currency: budgetState.currency || "EUR",
+      };
+    }
+    return null;
+  }
+  const override = budgetState.overrides?.[yyyyMM];
+  if (override?.enabled) {
+    return {
+      enabled: true,
+      monthlyTotal: Number(override.monthlyTotal || 0),
+      categories: override.categories || {},
+      currency: budgetState.currency || "EUR",
+    };
+  }
+  if (budgetState.template?.enabled) {
+    return {
+      enabled: true,
+      monthlyTotal: Number(budgetState.template.monthlyTotal || 0),
+      categories: budgetState.template.categories || {},
+      currency: budgetState.currency || "EUR",
+    };
+  }
+  return null;
+};
+
+const getSortMode = (category) => viewState.sortBy[category] || "date";
+
+const sortExpensesForCategory = (expenses, category) => {
+  const mode = getSortMode(category);
+  return [...expenses].sort((a, b) => {
+    if (mode === "amount") {
+      return b.amount - a.amount;
+    }
+    return new Date(b.date) - new Date(a.date);
+  });
+};
+
+const getBudgetProgress = (spent, budgetAmount) => {
+  if (!budgetAmount || budgetAmount <= 0) {
+    return { percent: 0, width: 0, color: "#16A34A" };
+  }
+  const rawPercent = Math.min((spent / budgetAmount) * 100, 999);
+  const width = Math.min(rawPercent, 100);
+  let color = "#16A34A";
+  if (rawPercent >= 90) {
+    color = "#EF4444";
+  } else if (rawPercent >= 70) {
+    color = "#F59E0B";
+  }
+  return { percent: Math.round(rawPercent), width, color };
+};
+
+const updateMonthlyBudgetBar = (filtered) => {
+  const activeBudget = getActiveBudgetForMonth(getSelectedYearMonth());
+  if (!activeBudget || activeBudget.monthlyTotal <= 0) {
+    monthlyBudgetBar.classList.remove("is-visible");
+    monthlyBudgetBar.setAttribute("aria-hidden", "true");
+    monthlyBudgetText.textContent = "";
+    return;
+  }
+  const spent = filtered
+    .filter((expense) => expense.currency === activeBudget.currency)
+    .reduce((sum, expense) => sum + expense.amount, 0);
+  const progress = getBudgetProgress(spent, activeBudget.monthlyTotal);
+  monthlyBudgetFill.style.width = `${progress.width}%`;
+  monthlyBudgetFill.style.background = progress.color;
+  monthlyBudgetTooltip.textContent = `Has usado el ${progress.percent}% de tu presupuesto mensual`;
+  monthlyBudgetText.textContent = `${Math.round(spent)}/${Math.round(
+    activeBudget.monthlyTotal
+  )} ${activeBudget.currency}`;
+  monthlyBudgetBar.classList.add("is-visible");
+  monthlyBudgetBar.setAttribute("aria-hidden", "false");
+};
+
+const buildCategoryBudgetBar = (category, subtotal, currency) => {
+  const activeBudget = getActiveBudgetForMonth(getSelectedYearMonth());
+  const budgetAmount = activeBudget?.categories?.[category];
+  if (!activeBudget || !budgetAmount || budgetAmount <= 0) {
+    return null;
+  }
+  if (currency && currency !== activeBudget.currency) {
+    return null;
+  }
+  const container = document.createElement("div");
+  container.className = "vg-budget-row vg-category-budget";
+  const bar = document.createElement("div");
+  bar.className = "vg-budget-bar";
+  bar.classList.add("is-visible");
+  const fill = document.createElement("span");
+  fill.className = "vg-budget-fill";
+  const tooltip = document.createElement("span");
+  tooltip.className = "vg-budget-tooltip";
+  const text = document.createElement("span");
+  text.className = "vg-budget-text";
+  const progress = getBudgetProgress(subtotal, budgetAmount);
+  fill.style.width = `${progress.width}%`;
+  fill.style.background = progress.color;
+  tooltip.textContent = `Has usado el ${progress.percent}% del presupuesto de ${category}`;
+  text.textContent = `${Math.round(subtotal)}/${Math.round(budgetAmount)} ${
+    activeBudget.currency
+  }`;
+  bar.append(fill, tooltip);
+  container.append(bar, text);
+  return container;
+};
+
+const setWizardStep = (step) => {
+  budgetStepLabel.textContent = String(step);
+  document.querySelectorAll(".vg-step-panel").forEach((panel) => {
+    panel.classList.toggle("is-active", panel.dataset.step === String(step));
+  });
+  if (step === 2) {
+    budgetStepRef.textContent = `Presupuesto mensual: ${formatAmount(
+      Number(budgetMonthlyAmount.value || 0)
+    )} ${budgetMonthlyCurrency.value}`;
+    budgetStepMonth.textContent = `Mes seleccionado: ${getSelectedYearMonth()}`;
+  }
+};
+
+const openWizard = () => {
+  budgetView.classList.add("is-hidden");
+  budgetWizard.style.display = "";
+  budgetWizard.classList.add("is-visible");
+  budgetWizard.classList.remove("is-hidden");
+  budgetWizard.setAttribute("aria-hidden", "false");
+  setWizardStep(0);
+};
+
+const closeWizard = () => {
+  budgetView.classList.remove("is-hidden");
+  budgetWizard.classList.remove("is-visible");
+  budgetWizard.classList.add("is-hidden");
+  budgetWizard.style.display = "none";
+  budgetWizard.setAttribute("aria-hidden", "true");
+  setWizardStep(0);
+};
+
+const loadBudgetIntoWizard = (settings) => {
+  budgetMonthlyAmount.value = settings.monthlyTotal || "";
+  budgetMonthlyCurrency.value = settings.currency || budgetState.currency || "EUR";
+  document.querySelectorAll("[data-category-budget]").forEach((input) => {
+    const category = input.dataset.categoryBudget;
+    input.value = settings.categories?.[category] ?? "";
+  });
+};
+
+const getEditableBudgetForMonth = (yyyyMM) => {
+  if (budgetState.mode === "monthly") {
+    const override = budgetState.overrides?.[yyyyMM];
+    return {
+      monthlyTotal: override?.monthlyTotal || 0,
+      categories: override?.categories || {},
+      currency: budgetState.currency || "EUR",
+    };
+  }
+  return {
+    monthlyTotal: budgetState.template?.monthlyTotal || 0,
+    categories: budgetState.template?.categories || {},
+    currency: budgetState.currency || "EUR",
+  };
+};
+
+const buildWizardSummary = () => {
+  budgetSummaryMonth.textContent = `Presupuesto mensual: ${formatAmount(
+    Number(budgetMonthlyAmount.value || 0)
+  )} ${budgetMonthlyCurrency.value}`;
+  budgetSummaryCategories.innerHTML = "";
+  document.querySelectorAll("[data-category-budget]").forEach((input) => {
+    const value = Number(input.value);
+    if (value > 0) {
+      const item = document.createElement("div");
+      item.className = "vg-summary-item";
+      item.textContent = `${input.dataset.categoryBudget}: ${formatAmount(value)} ${
+        budgetMonthlyCurrency.value
+      }`;
+      budgetSummaryCategories.appendChild(item);
+    }
+  });
+};
+
+const applyBudgetSettings = () => {
+  const monthlyAmount = Number(budgetMonthlyAmount.value || 0);
+  if (monthlyAmount <= 0) {
+    window.alert("Ingresa un presupuesto mensual válido.");
+    return false;
+  }
+  const categories = {};
+  document.querySelectorAll("[data-category-budget]").forEach((input) => {
+    const value = Number(input.value);
+    if (value > 0) {
+      categories[input.dataset.categoryBudget] = value;
+    }
+  });
+
+  budgetState.currency = budgetMonthlyCurrency.value;
+  if (budgetState.mode === "monthly") {
+    const monthKey = getSelectedYearMonth();
+    budgetState.overrides[monthKey] = {
+      enabled: true,
+      monthlyTotal: monthlyAmount,
+      categories,
+    };
+  } else {
+    budgetState.template = {
+      enabled: true,
+      monthlyTotal: monthlyAmount,
+      categories,
+    };
+  }
+  saveBudgets(budgetState);
+  return true;
+};
+
+const updateBudgetButtons = () => {
+  const cta = document.querySelector(".vg-budget-cta");
+  const active = getActiveBudgetForMonth(getSelectedYearMonth());
+  cta.classList.toggle("is-enabled", Boolean(active?.enabled));
+};
+
+const setupBudgetTooltip = (bar) => {
+  if (!bar) {
+    return;
+  }
+  bar.addEventListener("click", () => {
+    bar.classList.add("is-active");
+    setTimeout(() => bar.classList.remove("is-active"), 1500);
+  });
+};
+
+const buildYearSeries = (expenses, year) => {
+  const totals = Array.from({ length: 12 }, () => 0);
+  const stacked = {};
+  categoryList.forEach((category) => {
+    stacked[category] = Array.from({ length: 12 }, () => 0);
+  });
   expenses.forEach((expense) => {
-    if (typeof expense.date === "string") {
-      years.add(expense.date.slice(0, 4));
+    const date = new Date(expense.date);
+    if (date.getFullYear() !== year) {
+      return;
+    }
+    const month = date.getMonth();
+    totals[month] += expense.amount;
+    const normalizedCategory = normalizeCategory(expense.category);
+    if (stacked[normalizedCategory]) {
+      stacked[normalizedCategory][month] += expense.amount;
     }
   });
-
-  const sortedYears = Array.from(years).sort();
-  const currentSelection = yearSelect.value || currentYear;
-
-  yearSelect.innerHTML = "";
-  sortedYears.forEach((year) => {
-    const option = document.createElement("option");
-    option.value = year;
-    option.textContent = year;
-    yearSelect.appendChild(option);
-  });
-
-  yearSelect.value = sortedYears.includes(currentSelection)
-    ? currentSelection
-    : currentYear;
-
-  // Sincroniza el filtro actual si el año disponible cambió.
-  selectedMonthKey = buildMonthKey(
-    yearSelect.value || currentYear,
-    Number(monthSelect.value || 0)
-  );
+  return { totals, stacked };
 };
 
-const getCategoryTotals = () => {
-  const totals = Object.fromEntries(CATEGORIES.map((item) => [item, 0]));
-
-  getFilteredExpenses().forEach((expense) => {
-    if (Object.prototype.hasOwnProperty.call(totals, expense.category)) {
-      totals[expense.category] += expense.amount;
-    }
-  });
-
+const buildBudgetSeriesForYear = (year) => {
+  const totals = [];
+  for (let month = 1; month <= 12; month += 1) {
+    const key = `${year}-${String(month).padStart(2, "0")}`;
+    const active = getActiveBudgetForMonth(key);
+    totals.push(active?.monthlyTotal ? active.monthlyTotal : null);
+  }
   return totals;
 };
 
-const getExpensesForYear = (year) =>
-  expenses.filter(
-    (expense) => typeof expense.date === "string" && expense.date.startsWith(year)
-  );
+const destroyChart = (chart) => {
+  if (chart) {
+    chart.destroy();
+  }
+};
 
-const renderYearlyChart = () => {
-  const year = yearSelect.value || currentYear;
-  const yearExpenses = getExpensesForYear(year);
-  const totalsByMonth = Array.from({ length: 12 }, () => 0);
+const buildBaseOptions = () => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  animation: { duration: 200 },
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      callbacks: {
+        label: (context) => {
+          const value = context.raw ?? 0;
+          const label = context.dataset?.label || context.label || "";
+          return label ? `${label}: ${formatAmount(value)}` : `${formatAmount(value)}`;
+        },
+      },
+    },
+  },
+  scales: {
+    x: { grid: { display: false } },
+    y: { ticks: { callback: (value) => formatAmount(value) } },
+  },
+});
 
-  yearExpenses.forEach((expense) => {
-    const monthIndex = Number(expense.date.slice(5, 7)) - 1;
-    if (monthIndex >= 0 && monthIndex < 12) {
-      totalsByMonth[monthIndex] += expense.amount;
-    }
-  });
-
-  const maxValue = Math.max(...totalsByMonth, 0);
-  yearlyBars.innerHTML = "";
-
-  totalsByMonth.forEach((value, index) => {
-    const bar = document.createElement("button");
-    bar.type = "button";
-    bar.className = "yearly-bar";
-    if (Number(monthSelect.value) === index) {
-      bar.classList.add("is-active");
-    }
-
-    const fill = document.createElement("span");
-    fill.className = "yearly-bar__fill";
-    const barHeight = maxValue > 0 ? (value / maxValue) * 100 : 0;
-    fill.style.height = `${barHeight}%`;
-
-    const tooltip = document.createElement("span");
-    tooltip.className = "yearly-bar__tooltip";
-    tooltip.textContent = `${MONTHS[index]}: ${formatCurrency(value)}`;
-
-    bar.appendChild(fill);
-    bar.appendChild(tooltip);
-    bar.addEventListener("pointerdown", (event) => {
-      if (event.pointerType !== "touch") {
-        return;
-      }
-      yearlyBars.querySelectorAll(".yearly-bar").forEach((button) => {
-        button.classList.remove("is-tooltip");
-      });
-      bar.classList.add("is-tooltip");
+const renderEvolutionChart = (series) => {
+  destroyChart(evolutionChart);
+  if (!window.Chart) {
+    return;
+  }
+  evolutionEmpty.classList.remove("is-visible");
+  const baseOptions = buildBaseOptions();
+  if (evolutionMode === 0) {
+    evolutionTitle.textContent = "Total por mes";
+    evolutionChart = new Chart(evolutionChartCanvas, {
+      type: "line",
+      data: {
+        labels: monthLabels,
+        datasets: [
+          {
+            label: "Total",
+            data: series.totals,
+            borderColor: "#1F6BFF",
+            backgroundColor: "transparent",
+            tension: 0.35,
+            fill: false,
+          },
+        ],
+      },
+      options: {
+        ...baseOptions,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (context) => `${context.label}: ${formatAmount(context.raw ?? 0)}`,
+            },
+          },
+        },
+      },
     });
-
-    bar.addEventListener("mouseleave", () => {
-      bar.classList.remove("is-tooltip");
-    });
-
-    yearlyBars.appendChild(bar);
-  });
-};
-
-const getFilteredExpenses = () => {
-  const activeMonth = getSelectedMonthKey();
-
-  return expenses.filter(
-    (expense) =>
-      typeof expense.date === "string" && expense.date.startsWith(activeMonth)
-  );
-};
-
-const updateTotal = () => {
-  const total = getFilteredExpenses().reduce(
-    (sum, expense) => sum + expense.amount,
-    0
-  );
-
-  monthlyTotal.textContent = `Total (${getActivePeriodLabel()}): ${formatCurrency(
-    total
-  )}`;
-};
-
-const saveExpenses = () => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
-};
-
-let expandedCategory = null;
-
-const renderExpenses = () => {
-  categoryList.innerHTML = "";
-  const filteredExpenses = getFilteredExpenses();
-
-  if (filteredExpenses.length === 0) {
-    const emptyMessage = document.createElement("div");
-    emptyMessage.className = "category-item";
-    emptyMessage.textContent =
-      "No hay gastos en este mes. ¡Agrega el primero!";
-    categoryList.appendChild(emptyMessage);
     return;
   }
 
-  const totals = getCategoryTotals();
-  const totalAmount = Object.values(totals).reduce(
-    (sum, value) => sum + value,
-    0
-  );
+  if (evolutionMode === 1) {
+    evolutionTitle.textContent = "Repartición por mes";
+    const datasets = categoryList.map((category, index) => ({
+      label: category,
+      data: series.stacked[category],
+      backgroundColor: chartPalette[index],
+      borderRadius: 6,
+    }));
+    evolutionChart = new Chart(evolutionChartCanvas, {
+      type: "bar",
+      data: { labels: monthLabels, datasets },
+      options: {
+        ...baseOptions,
+        scales: {
+          x: { stacked: true, grid: { display: false } },
+          y: { stacked: true, ticks: { callback: (value) => formatAmount(value) } },
+        },
+      },
+    });
+    return;
+  }
 
-  CATEGORIES.forEach((category) => {
-    const categoryExpenses = filteredExpenses.filter(
-      (expense) => expense.category === category
-    );
-    const amount = totals[category];
-    const percentage = totalAmount > 0 ? (amount / totalAmount) * 100 : 0;
+  evolutionTitle.textContent = "Gasto vs Presupuesto";
+  const selectedYear = Number(yearSelect.value);
+  const budgetLine = buildBudgetSeriesForYear(selectedYear);
+  const hasAnyBudget = budgetLine.some((value) => value !== null && value > 0);
+  if (!hasAnyBudget) {
+    evolutionEmpty.classList.add("is-visible");
+    return;
+  }
+  evolutionChart = new Chart(evolutionChartCanvas, {
+    type: "line",
+    data: {
+      labels: monthLabels,
+      datasets: [
+        {
+          label: "Gasto",
+          data: series.totals,
+          borderColor: "#1F6BFF",
+          backgroundColor: "transparent",
+          tension: 0.35,
+        },
+        {
+          label: "Presupuesto",
+          data: budgetLine,
+          borderColor: "#16A34A",
+          backgroundColor: "transparent",
+          tension: 0.35,
+          borderDash: [6, 6],
+          spanGaps: false,
+        },
+      ],
+    },
+    options: baseOptions,
+  });
+};
 
-    const item = document.createElement("div");
-    item.className = "category-item";
+const renderDonutChart = (expenses, year, month) => {
+  destroyChart(donutChart);
+  if (!window.Chart) {
+    return;
+  }
+  const totals = categoryList
+    .map((category) => {
+      const value = expenses
+        .filter((expense) => {
+          const date = new Date(expense.date);
+          return (
+            date.getFullYear() === year &&
+            date.getMonth() === month &&
+            normalizeCategory(expense.category) === category
+          );
+        })
+        .reduce((sum, expense) => sum + expense.amount, 0);
+      return { category, value };
+    })
+    .filter((item) => item.value > 0)
+    .sort((a, b) => b.value - a.value);
 
-    const header = document.createElement("div");
-    header.className = "category-header";
-    header.setAttribute("role", "button");
-    header.setAttribute("tabindex", "0");
-    header.setAttribute("aria-expanded", expandedCategory === category);
+  monthDonutList.innerHTML = "";
+  if (!totals.length) {
+    monthDonutEmpty.classList.add("is-visible");
+    return;
+  }
+  monthDonutEmpty.classList.remove("is-visible");
+  const totalValue = totals.reduce((sum, item) => sum + item.value, 0);
+  const fallbackExpense = expenses.find((expense) => {
+    const date = new Date(expense.date);
+    return date.getFullYear() === year && date.getMonth() === month;
+  });
+  const currencyCode = budgetState.enabled
+    ? budgetState.monthly.currency
+    : fallbackExpense?.currency || "EUR";
+  totals.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "vg-donut-item";
+    const meta = document.createElement("div");
+    meta.className = "vg-donut-meta";
+    const emoji = document.createElement("span");
+    emoji.textContent = getCategoryEmoji(item.category);
+    const name = document.createElement("span");
+    name.textContent = item.category;
+    meta.append(emoji, name);
 
-    const title = document.createElement("strong");
-    title.textContent = category;
+    const value = document.createElement("div");
+    value.className = "vg-donut-value";
+    const percent = totalValue ? Math.round((item.value / totalValue) * 100) : 0;
+    value.textContent = `${formatAmount(item.value)} ${currencyCode}`;
+    const percentSpan = document.createElement("span");
+    percentSpan.className = "vg-donut-percent";
+    percentSpan.textContent = `${percent}%`;
+    value.appendChild(percentSpan);
+    row.append(meta, value);
+    monthDonutList.appendChild(row);
+  });
 
-    const subtitle = document.createElement("span");
-    subtitle.textContent = `${formatCurrency(amount)} · ${percentage.toFixed(
-      0
-    )}%`;
+  donutChart = new Chart(monthDonutCanvas, {
+    type: "doughnut",
+    data: {
+      labels: totals.map((item) => item.category),
+      datasets: [
+        {
+          data: totals.map((item) => item.value),
+          backgroundColor: totals.map(
+            (item) => chartPalette[categoryList.indexOf(item.category)]
+          ),
+          borderWidth: 0,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 200 },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context) => {
+              const value = context.raw ?? 0;
+              const percent = totalValue
+                ? Math.round((value / totalValue) * 100)
+                : 0;
+              return `${context.label}: ${formatAmount(value)} ${currencyCode} (${percent}%)`;
+            },
+          },
+        },
+      },
+    },
+  });
+};
 
-    header.appendChild(title);
-    header.appendChild(subtitle);
-    item.appendChild(header);
+const renderCharts = (expenses) => {
+  const selectedYear = Number(yearSelect.value);
+  const selectedMonth = Number(monthSelect.value);
+  const series = buildYearSeries(expenses, selectedYear);
+  renderEvolutionChart(series);
+  renderDonutChart(expenses, selectedYear, selectedMonth);
+};
 
-    if (expandedCategory === category) {
-      const details = document.createElement("div");
-      details.className = "category-expenses";
+const updateEvolutionDots = () => {
+  if (!evolutionDots) {
+    return;
+  }
+  evolutionDots.querySelectorAll(".vg-dot").forEach((dot, index) => {
+    dot.classList.toggle("is-active", index === evolutionMode);
+  });
+};
 
-      categoryExpenses.forEach((expense) => {
-        const expenseRow = document.createElement("div");
-        expenseRow.className = "category-expense";
+const setupEvolution = () => {
+  if (!evolutionPrev || !evolutionNext || !evolutionDots) {
+    return;
+  }
+  evolutionDots.innerHTML = "";
+  for (let i = 0; i < 3; i += 1) {
+    const dot = document.createElement("span");
+    dot.className = "vg-dot";
+    if (i === evolutionMode) {
+      dot.classList.add("is-active");
+    }
+    dot.addEventListener("click", () => {
+      evolutionMode = i;
+      renderCharts(loadExpenses());
+      updateEvolutionDots();
+    });
+    evolutionDots.appendChild(dot);
+  }
+  evolutionPrev.addEventListener("click", () => {
+    evolutionMode = (evolutionMode + 2) % 3;
+    renderCharts(loadExpenses());
+    updateEvolutionDots();
+  });
+  evolutionNext.addEventListener("click", () => {
+    evolutionMode = (evolutionMode + 1) % 3;
+    renderCharts(loadExpenses());
+    updateEvolutionDots();
+  });
+};
 
-        const expenseHeader = document.createElement("div");
-        expenseHeader.className = "category-expense-header";
+const renderExpenses = () => {
+  const expenses = loadExpenses();
+  const selectedYear = Number(yearSelect.value);
+  const selectedMonth = Number(monthSelect.value);
 
-        const concept = document.createElement("span");
-        concept.textContent = expense.concept;
+  const filtered = expenses
+    .filter((expense) => {
+      const date = new Date(expense.date);
+      return date.getFullYear() === selectedYear && date.getMonth() === selectedMonth;
+    })
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
 
-        const amountText = document.createElement("span");
-        amountText.textContent = formatCurrency(expense.amount);
+  const totals = {};
+  filtered.forEach((expense) => {
+    totals[expense.currency] = (totals[expense.currency] || 0) + expense.amount;
+  });
+  document.getElementById("month-total").textContent = buildAmountLabel(totals);
+  updateBudgetButtons();
+  updateMonthlyBudgetBar(filtered);
+  setupBudgetTooltip(monthlyBudgetBar);
+  renderCharts(expenses);
 
-        expenseHeader.appendChild(concept);
-        expenseHeader.appendChild(amountText);
+  const grouped = {};
+  filtered.forEach((expense) => {
+    const normalizedCategory = normalizeCategory(expense.category);
+    if (!grouped[normalizedCategory]) {
+      grouped[normalizedCategory] = [];
+    }
+    grouped[normalizedCategory].push({
+      ...expense,
+      category: normalizedCategory,
+    });
+  });
 
-        const meta = document.createElement("div");
-        meta.className = "category-expense-meta";
-        meta.textContent = expense.date;
+  expensesList.innerHTML = "";
 
-        const deleteButton = document.createElement("button");
-        deleteButton.className = "delete-button";
-        deleteButton.textContent = "Eliminar";
-        deleteButton.addEventListener("click", () => {
-          expenses = expenses.filter((item) => item.id !== expense.id);
-          saveExpenses();
-          buildYearOptions();
-          renderExpenses();
-          updateTotal();
-          updateAnalytics();
-        });
-
-        expenseRow.appendChild(expenseHeader);
-        expenseRow.appendChild(meta);
-        expenseRow.appendChild(deleteButton);
-        details.appendChild(expenseRow);
-      });
-
-      item.appendChild(details);
+  Object.keys(grouped).forEach((category) => {
+    const categoryCard = document.createElement("div");
+    categoryCard.className = "vg-category";
+    const isOpen = viewState.openCategories.has(category);
+    if (isOpen) {
+      categoryCard.classList.add("is-open");
     }
 
+    const header = document.createElement("button");
+    header.type = "button";
+    header.className = "vg-category-header";
+    header.setAttribute("aria-expanded", String(isOpen));
+
+    const title = document.createElement("div");
+    title.className = "vg-category-title";
+    const emoji = document.createElement("span");
+    emoji.textContent = getCategoryEmoji(category);
+    const name = document.createElement("span");
+    name.textContent = category;
+    title.append(emoji, name);
+
+    const subtotalTotals = {};
+    grouped[category].forEach((expense) => {
+      subtotalTotals[expense.currency] =
+        (subtotalTotals[expense.currency] || 0) + expense.amount;
+    });
+
+    const right = document.createElement("div");
+    right.className = "vg-category-right";
+    const meta = document.createElement("div");
+    meta.className = "vg-category-meta";
+    const subtotal = document.createElement("span");
+    subtotal.className = "vg-category-subtotal";
+    subtotal.textContent = buildAmountLabel(subtotalTotals);
+    meta.appendChild(subtotal);
+
+    const currencyForBudget = budgetState.monthly.currency;
+    const subtotalForCurrency = grouped[category]
+      .filter((expense) => expense.currency === currencyForBudget)
+      .reduce((sum, expense) => sum + expense.amount, 0);
+    const categoryBudgetBar = buildCategoryBudgetBar(
+      category,
+      subtotalForCurrency,
+      currencyForBudget
+    );
+    if (categoryBudgetBar) {
+      meta.appendChild(categoryBudgetBar);
+      setupBudgetTooltip(categoryBudgetBar.querySelector(".vg-budget-bar"));
+    }
+
+    const chevron = document.createElement("span");
+    chevron.className = "vg-chevron";
+    chevron.textContent = "⌄";
+    right.append(meta, chevron);
+
+    header.append(title, right);
+    categoryCard.appendChild(header);
+
+    const body = document.createElement("div");
+    body.className = "vg-category-body";
+
+    if (isOpen) {
+      const toggle = document.createElement("div");
+      toggle.className = "vg-sort-toggle";
+      const dateBtn = document.createElement("button");
+      dateBtn.type = "button";
+      dateBtn.className = "vg-sort-btn";
+      dateBtn.textContent = "Fecha";
+      dateBtn.dataset.sort = "date";
+      const amountBtn = document.createElement("button");
+      amountBtn.type = "button";
+      amountBtn.className = "vg-sort-btn";
+      amountBtn.textContent = "Cantidad";
+      amountBtn.dataset.sort = "amount";
+
+      const activeSort = getSortMode(category);
+      if (activeSort === "date") {
+        dateBtn.classList.add("is-active");
+      } else {
+        amountBtn.classList.add("is-active");
+      }
+
+      toggle.append(dateBtn, amountBtn);
+      body.appendChild(toggle);
+
+      sortExpensesForCategory(grouped[category], category).forEach((expense) => {
+        const item = document.createElement("div");
+        item.className = "vg-expense-item";
+
+        const meta = document.createElement("div");
+        meta.className = "expense-meta";
+        const concept = document.createElement("span");
+        concept.textContent = expense.concept;
+        const date = document.createElement("span");
+        date.className = "expense-date";
+        date.textContent = formatDateText(new Date(expense.date));
+        meta.append(concept, date);
+
+        const actions = document.createElement("div");
+        actions.className = "vg-expense-actions";
+        const amount = document.createElement("div");
+        amount.className = "expense-amount";
+        amount.textContent = `${formatAmount(expense.amount)} ${currencySymbols[expense.currency]}`;
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "vg-delete-btn";
+        deleteBtn.textContent = "🗑️";
+        deleteBtn.setAttribute("aria-label", "Eliminar gasto");
+        deleteBtn.addEventListener("click", () => {
+          const confirmed = window.confirm("¿Eliminar este gasto?");
+          if (!confirmed) {
+            return;
+          }
+          item.style.maxHeight = `${item.offsetHeight}px`;
+          item.offsetHeight;
+          item.classList.add("is-removing");
+          item.style.maxHeight = "0px";
+          setTimeout(() => {
+            const updated = loadExpenses().filter((entry) => entry.id !== expense.id);
+            saveExpenses(updated);
+            renderExpenses();
+          }, 180);
+        });
+
+        actions.append(amount, deleteBtn);
+        item.append(meta, actions);
+        body.appendChild(item);
+      });
+    }
+
+    categoryCard.appendChild(body);
     header.addEventListener("click", () => {
-      expandedCategory = expandedCategory === category ? null : category;
+      if (viewState.openCategories.has(category)) {
+        viewState.openCategories.delete(category);
+      } else {
+        viewState.openCategories.add(category);
+      }
       renderExpenses();
     });
 
-    header.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        header.click();
+    categoryCard.addEventListener("click", (event) => {
+      if (!event.target.classList.contains("vg-sort-btn")) {
+        return;
       }
+      const sortValue = event.target.dataset.sort;
+      viewState.sortBy[category] = sortValue;
+      renderExpenses();
     });
 
-    categoryList.appendChild(item);
+    expensesList.appendChild(categoryCard);
+
+    if (isOpen) {
+      requestAnimationFrame(() => {
+        body.style.maxHeight = `${body.scrollHeight}px`;
+      });
+    } else {
+      body.style.maxHeight = "0px";
+    }
   });
-};
 
-// Actualiza el resumen anual y la lista por categorías según filtros.
-const updateAnalytics = () => {
-  renderYearlyChart();
-};
-
-// Mensaje con feedback visual al guardar.
-const showMessage = (text, type = "error") => {
-  formMessage.textContent = text;
-  formMessage.classList.remove("is-success", "is-hidden", "toast");
-  if (type === "success") {
-    formMessage.classList.add("is-success", "toast");
-    setTimeout(() => {
-      formMessage.classList.add("is-hidden");
-    }, 1500);
-  } else {
-    formMessage.classList.remove("is-success");
+  if (!filtered.length) {
+    const empty = document.createElement("div");
+    empty.className = "vg-empty";
+    empty.textContent = "No hay gastos para este mes.";
+    expensesList.appendChild(empty);
   }
 };
 
-const clearMessage = () => {
-  formMessage.textContent = "";
-  formMessage.classList.remove("is-success", "is-hidden");
+const resetForm = () => {
+  conceptInput.value = "";
+  state.amount = 0;
+  updateAmountDisplay();
+  amountInput.value = "";
+  document.querySelectorAll(".cat-card").forEach((card) => {
+    card.classList.remove("selected");
+  });
+  state.category = null;
 };
 
-const addExpense = (event) => {
-  event.preventDefault();
-  clearMessage();
-
+const handleSave = () => {
   const concept = conceptInput.value.trim();
-  const amount = parseAmount(amountInput.value);
-  const category = categoryInput.value;
-  const date = dateInput.value;
-
   if (!concept) {
-    showMessage("El concepto es obligatorio.");
+    window.alert("Escribe un concepto.");
     return;
   }
-  const target = emojiButton.closest(".category-card");
-  categoryInput.value = target.dataset.category;
-  updateCategorySelection();
-  updateSubmitState();
-});
-
-dateDisplay.addEventListener("click", openDateModal);
-closeDateModal.addEventListener("click", () => {
-  applyDateFromSelectors();
-  closeModal();
-});
-
-conceptInput.addEventListener("input", updateSubmitState);
-amountInput.addEventListener("blur", () => {
-  amountInput.value = formatAmountInput(parseAmount(amountInput.value));
-});
-
-shortcutToday.addEventListener("click", () => {
-  dateInput.value = today.toISOString().slice(0, 10);
-  syncDateSelectors();
-});
-
-shortcutYesterday.addEventListener("click", () => {
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-  dateInput.value = yesterday.toISOString().slice(0, 10);
-  syncDateSelectors();
-});
-
-dateModal.addEventListener("click", (event) => {
-  if (event.target === dateModal) {
-    closeModal();
+  if (!state.category) {
+    window.alert("Selecciona una categoría.");
+    return;
   }
-});
-
-currencyButton.addEventListener("click", openCurrencyModal);
-closeCurrencyModal.addEventListener("click", closeCurrency);
-currencyModal.addEventListener("click", (event) => {
-  if (event.target === currencyModal) {
-    closeCurrency();
-  }
-});
-
-  if (Number.isNaN(amount) || amount <= 0) {
-    showMessage("La cantidad debe ser mayor que 0.");
+  if (state.amount <= 0) {
+    window.alert("La cantidad debe ser mayor que 0.");
     return;
   }
 
-  if (!date) {
-    showMessage("Selecciona una fecha válida.");
-    return;
-  }
-
-  const newExpense = {
-    id: crypto.randomUUID(),
+  const expense = {
+    id: `${Date.now()}-${Math.floor(Math.random() * 10000)}`,
     concept,
-    amount,
-    category,
-    date,
+    amount: Number(state.amount),
+    currency: state.currency,
+    category: state.category,
+    date: state.date.toISOString().slice(0, 10),
   };
 
-  expenses = [newExpense, ...expenses];
-  saveExpenses();
-  buildYearOptions();
+  const expenses = loadExpenses();
+  expenses.push(expense);
+  saveExpenses(expenses);
+  showToast();
+  buildYearOptions(expenses);
   renderExpenses();
-  updateTotal();
-  updateAnalytics();
-
-  expenseForm.reset();
-  amountInput.value = formatAmountInput(0);
-  dateInput.value = today.toISOString().slice(0, 10);
-  dateDisplay.textContent = formatDateLabel(dateInput.value);
-  categoryInput.value = CATEGORIES[0];
-  updateCategorySelection();
-  updateSubmitState();
-  showMessage("Gasto guardado correctamente.", "success");
+  resetForm();
 };
 
-const loadExpenses = () => {
-  const storedData = localStorage.getItem(STORAGE_KEY);
-  expenses = storedData ? JSON.parse(storedData) : [];
-  buildYearOptions();
-  renderExpenses();
-  updateTotal();
-  updateAnalytics();
-};
-
-// Alterna entre vistas tipo pestañas.
-const setActiveView = (view) => {
-  const isAddView = view === "add";
-  addView.hidden = !isAddView;
-  addView.classList.toggle("is-visible", isAddView);
-  viewExpenses.hidden = isAddView;
-  viewExpenses.classList.toggle("is-visible", !isAddView);
-
-  tabButtons.forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.view === view);
-  });
-};
-
-// Botones + y - del contador de cantidad.
-const updateAmount = (delta) => {
-  const current = parseAmount(amountInput.value);
-  const nextValue = Math.max(0, current + delta);
-  amountInput.value = formatAmountInput(nextValue);
-  updateSubmitState();
-};
-
-// Marca visualmente la categoría activa.
-const updateCategorySelection = () => {
-  const selected = categoryInput.value;
-  categoryGrid.querySelectorAll(".category-card").forEach((card) => {
-    card.classList.toggle("is-selected", card.dataset.category === selected);
-  });
-  categoryGrid.classList.toggle("is-dimmed", Boolean(selected));
-};
-
-// Modal simple para elegir fecha.
-const openDateModal = () => {
-  syncDateButtons();
-  dateModal.classList.add("is-open");
-  dateModal.setAttribute("aria-hidden", "false");
-};
-
-const closeModal = () => {
-  dateModal.classList.remove("is-open");
-  dateModal.setAttribute("aria-hidden", "true");
-};
-
-const openCurrencyModal = () => {
-  currencyModal.classList.add("is-open");
-  currencyModal.setAttribute("aria-hidden", "false");
-};
-
-const closeCurrency = () => {
-  currencyModal.classList.remove("is-open");
-  currencyModal.setAttribute("aria-hidden", "true");
-};
-
-const buildCurrencyOptions = () => {
-  currencyOptions.innerHTML = "";
-  CURRENCIES.forEach((currency) => {
-    const option = document.createElement("button");
-    option.type = "button";
-    option.className = "currency-option";
-    option.textContent = currency;
-    option.classList.toggle("is-selected", currency === selectedCurrency);
-    option.addEventListener("click", () => {
-      selectedCurrency = currency;
-      currencyButton.textContent = currency;
-      buildCurrencyOptions();
+const setupTabs = () => {
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const target = tab.dataset.tab;
+      tabs.forEach((btn) => {
+        btn.classList.toggle("is-active", btn === tab);
+        btn.setAttribute("aria-selected", String(btn === tab));
+      });
+      panels.forEach((panel) => {
+        panel.classList.toggle(
+          "is-visible",
+          panel.id === `tab-${target}`
+        );
+      });
     });
-    currencyOptions.appendChild(option);
   });
 };
 
-const buildDateOptions = () => {
-  const currentYearNumber = Number(currentYear);
-  return {
-    days: Array.from({ length: 31 }, (_, index) =>
-      String(index + 1).padStart(2, "0")
-    ),
-    months: MONTHS.map((monthName, index) => ({
-      value: String(index + 1).padStart(2, "0"),
-      label: monthName.slice(0, 3),
-    })),
-    years: Array.from({ length: 7 }, (_, index) =>
-      String(currentYearNumber - 5 + index)
-    ),
+const setupAmountControl = () => {
+  document.querySelectorAll(".amount-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const action = btn.dataset.action;
+      const delta = action === "increment" ? 1 : -1;
+      state.amount = Math.max(0, state.amount + delta);
+      updateAmountDisplay();
+    });
+  });
+
+  const applyAmountInput = () => {
+    const value = Number(amountInput.value.replace(",", "."));
+    if (!Number.isNaN(value)) {
+      state.amount = Math.max(0, value);
+      updateAmountDisplay();
+    }
+    amountInput.classList.remove("is-visible");
   };
-};
 
-const dateOptions = buildDateOptions();
-
-const syncDateButtons = () => {
-  const [year, month, day] = dateInput.value.split("-");
-  const monthLabel =
-    dateOptions.months.find((item) => item.value === month)?.label ?? "Mes";
-  dayButton.textContent = day;
-  monthButton.textContent = monthLabel;
-  yearButton.textContent = year;
-};
-
-const applyDateFromButtons = (nextDay, nextMonth, nextYear) => {
-  dateInput.value = `${nextYear}-${nextMonth}-${nextDay}`;
-  dateDisplay.textContent = formatDateLabel(dateInput.value);
-  syncDateButtons();
-};
-
-const updateSubmitState = () => {
-  const hasConcept = conceptInput.value.trim().length > 0;
-  const amountValue = parseAmount(amountInput.value);
-  const isReady = hasConcept && amountValue > 0;
-  submitExpense.classList.toggle("is-disabled", !isReady);
-  submitExpense.setAttribute("aria-disabled", String(!isReady));
-};
-
-expenseForm.addEventListener("submit", addExpense);
-tabButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    setActiveView(button.dataset.view);
+  amountDisplay.addEventListener("click", () => {
+    amountInput.classList.add("is-visible");
+    amountInput.value = state.amount.toString();
+    amountInput.focus();
   });
-});
 
-decreaseAmount.addEventListener("click", () => updateAmount(-1));
-increaseAmount.addEventListener("click", () => updateAmount(1));
-amountInput.addEventListener("input", () => {
-  const amountValue = parseAmount(amountInput.value);
-  if (amountValue < 0) {
-    amountInput.value = formatAmountInput(0);
+  amountDisplay.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      amountInput.classList.add("is-visible");
+      amountInput.value = state.amount.toString();
+      amountInput.focus();
+    }
+  });
+
+  amountInput.addEventListener("blur", applyAmountInput);
+  amountInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      applyAmountInput();
+    }
+  });
+};
+
+const setupCategorySelection = () => {
+  document.querySelectorAll(".cat-circle").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      const card = event.currentTarget.closest(".cat-card");
+      setCategory(card.dataset.category, button);
+    });
+  });
+};
+
+const setupCurrencyModal = () => {
+  currencyPill.addEventListener("click", openCurrencyModal);
+  currencyModal.querySelectorAll("button[data-currency]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      updateCurrency(btn.dataset.currency);
+      closeCurrencyModal();
+    });
+  });
+  currencyModal.querySelector(".modal-overlay").addEventListener("click", closeCurrencyModal);
+};
+
+const setupDateModal = () => {
+  dateDisplay.addEventListener("click", () => {
+    state.dateSelection = {
+      day: state.date.getDate(),
+      month: state.date.getMonth(),
+      year: state.date.getFullYear(),
+    };
+    renderDatePills();
+    openDateModal();
+  });
+
+  dateModal.querySelector(".modal-overlay").addEventListener("click", closeDateModal);
+
+  dateModal.querySelectorAll("[data-quick]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const now = new Date();
+      if (btn.dataset.quick === "yesterday") {
+        now.setDate(now.getDate() - 1);
+      }
+      state.dateSelection = {
+        day: now.getDate(),
+        month: now.getMonth(),
+        year: now.getFullYear(),
+      };
+      renderDatePills();
+    });
+  });
+
+  datePills.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!target.classList.contains("pill")) {
+      return;
+    }
+    const { type, value } = target.dataset;
+    updateDateSelection(type, value);
+    renderDatePills();
+  });
+
+  confirmDateBtn.addEventListener("click", () => {
+    state.date = buildDateFromSelection();
+    updateDateDisplay();
+    closeDateModal();
+  });
+};
+
+const setupFilters = () => {
+  yearSelect.addEventListener("change", renderExpenses);
+  monthSelect.addEventListener("change", renderExpenses);
+};
+
+const setupBudgets = () => {
+  Object.assign(budgetState, loadBudgets());
+  updateBudgetButtons();
+  budgetModeTemplate.addEventListener("click", () => {
+    budgetState.mode = "template";
+    saveBudgets(budgetState);
+    setWizardStep(1);
+  });
+  budgetModeMonthly.addEventListener("click", () => {
+    budgetState.mode = "monthly";
+    saveBudgets(budgetState);
+    setWizardStep(1);
+  });
+  budgetStartBtn.addEventListener("click", () => {
+    const editable = getEditableBudgetForMonth(getSelectedYearMonth());
+    loadBudgetIntoWizard(editable);
+    openWizard();
+  });
+  budgetEditBtn.addEventListener("click", () => {
+    const editable = getEditableBudgetForMonth(getSelectedYearMonth());
+    loadBudgetIntoWizard(editable);
+    openWizard();
+  });
+  budgetDisableBtn.addEventListener("click", () => {
+    const monthKey = getSelectedYearMonth();
+    if (budgetState.mode === "monthly") {
+      budgetState.overrides[monthKey] = {
+        ...(budgetState.overrides[monthKey] || {}),
+        enabled: false,
+        monthlyTotal: budgetState.overrides[monthKey]?.monthlyTotal || 0,
+        categories: budgetState.overrides[monthKey]?.categories || {},
+      };
+    } else {
+      budgetState.template.enabled = false;
+    }
+    saveBudgets(budgetState);
+    updateBudgetButtons();
+    renderExpenses();
+  });
+  budgetBackBtn.addEventListener("click", closeWizard);
+
+  budgetNext1.addEventListener("click", () => {
+    const amount = Number(budgetMonthlyAmount.value || 0);
+    if (amount <= 0) {
+      window.alert("Ingresa un presupuesto mensual válido.");
+      return;
+    }
+    setWizardStep(2);
+  });
+
+  budgetSkip.addEventListener("click", () => {
+    document.querySelectorAll("[data-category-budget]").forEach((input) => {
+      input.value = "";
+    });
+    buildWizardSummary();
+    setWizardStep(3);
+  });
+
+  budgetNext2.addEventListener("click", () => {
+    buildWizardSummary();
+    setWizardStep(3);
+  });
+
+  budgetActivate.addEventListener("click", () => {
+    const applied = applyBudgetSettings();
+    if (!applied) {
+      return;
+    }
+    updateBudgetButtons();
+    closeWizard();
+    renderExpenses();
+  });
+};
+
+const init = () => {
+  setupTabs();
+  setupAmountControl();
+  setupCategorySelection();
+  setupCurrencyModal();
+  setupDateModal();
+  setupFilters();
+  setupBudgets();
+  setupEvolution();
+
+  if (window.Chart) {
+    Chart.defaults.font.family =
+      'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial';
+    Chart.defaults.color = "#0b1220";
   }
-  updateSubmitState();
-});
 
-categoryGrid.addEventListener("click", (event) => {
-  const emojiButton = event.target.closest(".cat-circle");
-  if (!emojiButton) {
-    return;
-  }
-  const target = emojiButton.closest(".category-card");
-  categoryInput.value = target.dataset.category;
-  updateCategorySelection();
-  updateSubmitState();
-});
-
-dateDisplay.addEventListener("click", openDateModal);
-closeDateModal.addEventListener("click", () => {
-  const [year, month, day] = dateInput.value.split("-");
-  applyDateFromButtons(day, month, year);
-  closeModal();
-});
-
-conceptInput.addEventListener("input", updateSubmitState);
-amountInput.addEventListener("blur", () => {
-  amountInput.value = formatAmountInput(parseAmount(amountInput.value));
-});
-
-shortcutToday.addEventListener("click", () => {
-  dateInput.value = today.toISOString().slice(0, 10);
-  syncDateButtons();
-});
-
-shortcutYesterday.addEventListener("click", () => {
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-  dateInput.value = yesterday.toISOString().slice(0, 10);
-  syncDateButtons();
-});
-
-dateModal.addEventListener("click", (event) => {
-  if (event.target === dateModal) {
-    closeModal();
-  }
-});
-
-currencyButton.addEventListener("click", openCurrencyModal);
-closeCurrencyModal.addEventListener("click", closeCurrency);
-currencyModal.addEventListener("click", (event) => {
-  if (event.target === currencyModal) {
-    closeCurrency();
-  }
-});
-
-dayButton.addEventListener("click", () => {
-  const [year, month, day] = dateInput.value.split("-");
-  const currentIndex = dateOptions.days.indexOf(day);
-  const nextDay =
-    dateOptions.days[(currentIndex + 1) % dateOptions.days.length];
-  applyDateFromButtons(nextDay, month, year);
-});
-
-monthButton.addEventListener("click", () => {
-  const [year, month, day] = dateInput.value.split("-");
-  const currentIndex = dateOptions.months.findIndex(
-    (item) => item.value === month
-  );
-  const nextMonth =
-    dateOptions.months[(currentIndex + 1) % dateOptions.months.length].value;
-  applyDateFromButtons(day, nextMonth, year);
-});
-
-yearButton.addEventListener("click", () => {
-  const [year, month, day] = dateInput.value.split("-");
-  const currentIndex = dateOptions.years.indexOf(year);
-  const nextYear =
-    dateOptions.years[(currentIndex + 1) % dateOptions.years.length];
-  applyDateFromButtons(day, month, nextYear);
-});
-
-yearSelect.addEventListener("change", () => {
-  selectedMonthKey = buildMonthKey(
-    yearSelect.value || currentYear,
-    Number(monthSelect.value || 0)
-  );
+  updateCurrency(state.currency);
+  updateAmountDisplay();
+  updateDateDisplay();
+  const expenses = loadExpenses();
+  buildYearOptions(expenses);
+  buildMonthOptions();
   renderExpenses();
-  updateTotal();
-  updateAnalytics();
-});
 
-monthSelect.addEventListener("change", () => {
-  selectedMonthKey = buildMonthKey(
-    yearSelect.value || currentYear,
-    Number(monthSelect.value || 0)
-  );
-  renderExpenses();
-  updateTotal();
-  updateAnalytics();
-});
+  saveBtn.addEventListener("click", handleSave);
+};
 
-dateInput.value = today.toISOString().slice(0, 10);
-dateDisplay.textContent = formatDateLabel(dateInput.value);
-amountInput.value = formatAmountInput(0);
-categoryInput.value = CATEGORIES[0];
-updateCategorySelection();
-updateSubmitState();
-syncDateButtons();
-buildCurrencyOptions();
-currencyButton.textContent = selectedCurrency;
-buildMonthOptions();
-buildYearOptions();
-monthSelect.value = currentMonthIndex.toString();
-yearSelect.value = currentYear;
-selectedMonthKey = buildMonthKey(currentYear, currentMonthIndex);
-setActiveView("add");
-loadExpenses();
+init();
