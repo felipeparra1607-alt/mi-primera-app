@@ -359,6 +359,10 @@ select:focus,
   gap: 18px;
 }
 
+.select-field {
+  margin-bottom: 18px;
+}
+
 .vg-category {
   border: 1px solid var(--border);
   border-radius: 20px;
@@ -467,6 +471,197 @@ select:focus,
   transform: translateY(-1px);
 }
 
+.vg-evolution {
+  margin-bottom: 18px;
+}
+
+.vg-evolution-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.vg-evolution-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.vg-carousel-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.vg-carousel-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #fff;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 900;
+  transition: 160ms ease;
+}
+
+.vg-carousel-btn:hover {
+  background: var(--muted-bg);
+}
+
+.vg-carousel {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(260px, 1fr);
+  gap: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 8px;
+}
+
+.vg-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+  scroll-snap-align: start;
+}
+
+.vg-card h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.vg-chart {
+  position: relative;
+  height: 220px;
+}
+
+.vg-chart canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.vg-chart-empty {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 0 12px;
+}
+
+.vg-chart-empty.is-visible {
+  display: flex;
+}
+
+.vg-carousel-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.vg-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #cbd5f5;
+  transition: 160ms ease;
+}
+
+.vg-dot.is-active {
+  background: #1f6bff;
+  transform: scale(1.15);
+}
+
+.vg-donut {
+  margin-bottom: 18px;
+}
+
+.vg-donut-header h3 {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.vg-donut-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.vg-donut-chart {
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 12px;
+  height: 260px;
+}
+
+.vg-donut-chart canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.vg-donut-empty {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 0 12px;
+}
+
+.vg-donut-empty.is-visible {
+  display: flex;
+}
+
+.vg-donut-list {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vg-donut-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.vg-donut-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vg-donut-value {
+  font-weight: 900;
+}
+
+.vg-donut-percent {
+  color: #64748b;
+  font-weight: 700;
+  margin-left: 6px;
+}
+
 .vg-budget-row {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -552,6 +747,10 @@ select:focus,
   display: block;
 }
 
+.vg-wizard.is-hidden {
+  display: none;
+}
+
 .vg-back-btn {
   border: none;
   background: transparent;
@@ -633,7 +832,7 @@ select:focus,
 }
 
 .vg-chevron {
-  display: inline-flex;
+  display: none;
   align-items: center;
   justify-content: center;
   width: 28px;
@@ -721,12 +920,18 @@ select:focus,
   color: var(--danger);
   font-size: 18px;
   cursor: pointer;
-  opacity: 0;
+  opacity: 1;
+  min-width: 32px;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
   transition: 160ms ease;
 }
 
-.vg-expense-item:hover .vg-delete-btn {
-  opacity: 1;
+.vg-delete-btn:hover {
+  background: #fee2e2;
 }
 
 .vg-empty {
@@ -949,5 +1154,27 @@ select:focus,
 
   .vg-budget-text {
     text-align: left;
+  }
+
+  .vg-budget-cta {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .vg-budget-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .vg-btn {
+    width: 100%;
+  }
+
+  .vg-chart {
+    height: 180px;
+  }
+
+  .vg-donut-content {
+    grid-template-columns: 1fr;
   }
 }

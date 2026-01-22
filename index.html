@@ -85,25 +85,71 @@
     <section class="tab-panel" id="tab-view" role="tabpanel">
       <h2>Ver gastos</h2>
 
-      <div class="filters">
-        <div class="select-field">
-          <label for="year-select">AÑO</label>
-          <select id="year-select"></select>
-        </div>
-        <div class="select-field">
-          <label for="month-select">MES</label>
-          <select id="month-select"></select>
-        </div>
-      </div>
-
       <div class="vg-view" id="view-budget">
-        <div class="vg-budget-cta">
+        <div class="vg-budget-cta" id="budget-cta">
           <button class="vg-btn vg-btn-primary" type="button" id="budget-start">Añadir presupuesto</button>
           <div class="vg-budget-actions">
             <button class="vg-btn vg-btn-secondary" type="button" id="budget-edit">Editar presupuesto</button>
             <button class="vg-btn vg-btn-danger" type="button" id="budget-disable">Desactivar presupuesto</button>
           </div>
         </div>
+
+        <div class="select-field">
+          <label for="year-select">AÑO</label>
+          <select id="year-select"></select>
+        </div>
+
+        <section class="vg-evolution">
+          <div class="vg-evolution-header">
+            <h3>Evolución</h3>
+            <div class="vg-carousel-controls">
+              <button class="vg-carousel-btn" type="button" id="carousel-prev" aria-label="Anterior">‹</button>
+              <button class="vg-carousel-btn" type="button" id="carousel-next" aria-label="Siguiente">›</button>
+            </div>
+          </div>
+          <div class="vg-carousel" id="evolution-carousel">
+            <article class="vg-card">
+              <h3>Total por mes</h3>
+              <div class="vg-chart">
+                <canvas id="chart-total"></canvas>
+              </div>
+            </article>
+            <article class="vg-card">
+              <h3>Repartición por mes</h3>
+              <div class="vg-chart">
+                <canvas id="chart-stacked"></canvas>
+              </div>
+            </article>
+            <article class="vg-card">
+              <h3>Gasto vs Presupuesto</h3>
+              <div class="vg-chart">
+                <canvas id="chart-budget"></canvas>
+                <div class="vg-chart-empty" id="chart-budget-empty">
+                  Activa presupuesto para ver esta comparación
+                </div>
+              </div>
+            </article>
+          </div>
+          <div class="vg-carousel-dots" id="carousel-dots"></div>
+        </section>
+
+        <div class="select-field">
+          <label for="month-select">MES</label>
+          <select id="month-select"></select>
+        </div>
+
+        <section class="vg-donut">
+          <div class="vg-donut-header">
+            <h3>Categorías del mes</h3>
+          </div>
+          <div class="vg-donut-content">
+            <div class="vg-donut-chart">
+              <canvas id="chart-donut"></canvas>
+              <div class="vg-donut-empty" id="donut-empty">Sin gastos en este mes</div>
+            </div>
+            <div class="vg-donut-list" id="donut-list"></div>
+          </div>
+        </section>
 
         <div class="monthly-total">
           <span>Total del mes</span>
@@ -173,7 +219,6 @@
             <button class="primary-btn" type="button" id="budget-next-2">Siguiente</button>
           </div>
         </div>
-      </div>
 
         <div class="vg-step-panel" data-step="3">
           <h3>Resumen del presupuesto</h3>
@@ -218,6 +263,7 @@
     <span>✅ Gasto guardado</span>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
