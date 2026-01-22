@@ -170,9 +170,19 @@
 
       <div class="vg-wizard" id="budget-wizard" aria-hidden="true">
         <button class="vg-back-btn" type="button" id="budget-back">← Volver</button>
-        <div class="vg-step">Paso <span id="budget-step">1</span> de 3</div>
+        <div class="vg-step">Paso <span id="budget-step">0</span> de 4</div>
 
-        <div class="vg-step-panel is-active" data-step="1">
+        <div class="vg-step-panel is-active" data-step="0">
+          <h3>Tipo de presupuesto</h3>
+          <button class="vg-btn vg-btn-primary" type="button" id="budget-mode-template">
+            Mismo presupuesto cada mes
+          </button>
+          <button class="vg-btn vg-btn-secondary" type="button" id="budget-mode-monthly">
+            Presupuesto por mes
+          </button>
+        </div>
+
+        <div class="vg-step-panel" data-step="1">
           <h3>Presupuesto mensual</h3>
           <label for="budget-month-amount">Cantidad mensual</label>
           <input id="budget-month-amount" type="number" inputmode="decimal" min="0" step="0.01" />
@@ -190,6 +200,7 @@
         <div class="vg-step-panel" data-step="2">
           <h3>Presupuesto por categoría</h3>
           <div class="vg-step-ref" id="budget-step-ref"></div>
+          <div class="vg-step-ref" id="budget-step-month"></div>
           <div class="vg-category-inputs">
             <div class="vg-category-row">
               <span>Restaurantes</span>
