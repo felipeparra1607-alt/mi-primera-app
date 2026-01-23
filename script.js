@@ -622,6 +622,11 @@ const buildWizardSummary = () => {
       budgetSummaryCategories.appendChild(item);
     }
   });
+  if (step === 2) {
+    budgetStepRef.textContent = `Presupuesto mensual: ${formatAmount(
+      Number(budgetMonthlyAmount.value || 0)
+    )} ${budgetMonthlyCurrency.value}`;
+  }
 };
 
 const applyBudgetSettings = () => {
@@ -782,6 +787,31 @@ const renderEvolutionChart = (series) => {
     });
     return;
   }
+  evolutionDots.innerHTML = "";
+  for (let i = 0; i < 3; i += 1) {
+    const dot = document.createElement("span");
+    dot.className = "vg-dot";
+    if (i === evolutionMode) {
+      dot.classList.add("is-active");
+    }
+    dot.addEventListener("click", () => {
+      evolutionMode = i;
+      renderCharts(loadExpenses());
+      updateEvolutionDots();
+    });
+    evolutionDots.appendChild(dot);
+  }
+  evolutionPrev.addEventListener("click", () => {
+    evolutionMode = (evolutionMode + 2) % 3;
+    renderCharts(loadExpenses());
+    updateEvolutionDots();
+  });
+  evolutionNext.addEventListener("click", () => {
+    evolutionMode = (evolutionMode + 1) % 3;
+    renderCharts(loadExpenses());
+    updateEvolutionDots();
+  });
+};
 
   if (evolutionMode === 1) {
     evolutionTitle.textContent = "Repartición por mes";
