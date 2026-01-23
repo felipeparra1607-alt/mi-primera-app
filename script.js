@@ -1064,7 +1064,7 @@ const renderExpenses = () => {
     meta.className = "vg-category-meta";
     const subtotal = document.createElement("span");
     subtotal.className = "vg-category-subtotal";
-    subtotal.textContent = buildAmountLabel(subtotalTotals);
+    subtotal.textContent = buildAmountLabel(subtotalTotals).main;
     meta.appendChild(subtotal);
 
     const activeBudget = getBudgetForSelectedMonth(getSelectedYearMonth());
