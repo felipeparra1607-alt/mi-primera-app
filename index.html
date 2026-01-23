@@ -109,6 +109,7 @@
             <button class="vg-btn vg-btn-danger" type="button" id="budget-disable">Desactivar presupuesto</button>
           </div>
         </div>
+        <div class="vg-budget-note" id="budget-monthly-note">Este mes no tiene presupuesto definido</div>
 
         <div class="select-field">
           <label for="year-select">AÑO</label>
@@ -175,15 +176,19 @@
         <div class="vg-step-panel is-active" data-step="0">
           <h3>Tipo de presupuesto</h3>
           <button class="vg-btn vg-btn-primary" type="button" id="budget-mode-template">
-            Mismo presupuesto cada mes
+            Misma cantidad todos los meses
           </button>
           <button class="vg-btn vg-btn-secondary" type="button" id="budget-mode-monthly">
-            Presupuesto por mes
+            Cantidad individual por mes
           </button>
         </div>
 
         <div class="vg-step-panel" data-step="1">
           <h3>Presupuesto mensual</h3>
+          <div class="vg-step-panel-month" id="budget-month-selector">
+            <label for="budget-month-select">Mes del presupuesto</label>
+            <select id="budget-month-select"></select>
+          </div>
           <label for="budget-month-amount">Cantidad mensual</label>
           <input id="budget-month-amount" type="number" inputmode="decimal" min="0" step="0.01" />
           <label for="budget-month-currency">Divisa</label>
@@ -255,7 +260,7 @@
             <p id="budget-summary-month"></p>
             <div id="budget-summary-categories"></div>
           </div>
-          <button class="vg-btn vg-btn-primary" type="button" id="budget-activate">Activar presupuesto</button>
+          <button class="vg-btn vg-btn-primary" type="button" id="budget-activate">Guardar presupuesto</button>
         </div>
       </div>
     </section>

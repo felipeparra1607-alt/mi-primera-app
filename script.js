@@ -21,9 +21,9 @@ const viewState = {
 
 const budgetState = {
   currency: "EUR",
-  mode: "template",
-  template: { enabled: false, monthlyTotal: 0, categories: {} },
-  overrides: {},
+  mode: "global",
+  global: { enabled: false, monthlyTotal: 0, categories: {} },
+  monthly: {},
 };
 
 const monthNames = [
@@ -93,6 +93,8 @@ const budgetSkip = document.getElementById("budget-skip");
 const budgetActivate = document.getElementById("budget-activate");
 const budgetMonthlyAmount = document.getElementById("budget-month-amount");
 const budgetMonthlyCurrency = document.getElementById("budget-month-currency");
+const budgetMonthSelect = document.getElementById("budget-month-select");
+const budgetMonthSelector = document.getElementById("budget-month-selector");
 const budgetSummaryMonth = document.getElementById("budget-summary-month");
 const budgetSummaryCategories = document.getElementById("budget-summary-categories");
 const monthlyBudgetBar = document.getElementById("monthly-budget-bar");
@@ -103,6 +105,7 @@ const budgetStepRef = document.getElementById("budget-step-ref");
 const budgetStepMonth = document.getElementById("budget-step-month");
 const budgetModeTemplate = document.getElementById("budget-mode-template");
 const budgetModeMonthly = document.getElementById("budget-mode-monthly");
+const budgetMonthlyNote = document.getElementById("budget-monthly-note");
 const evolutionTitle = document.getElementById("evolution-title");
 const evolutionChartCanvas = document.getElementById("evolution-chart");
 const evolutionEmpty = document.getElementById("evolution-empty");
@@ -184,13 +187,13 @@ const migrateBudgets = () => {
     const legacy = JSON.parse(legacyRaw);
     const migrated = {
       currency: legacy.monthly?.currency || "EUR",
-      mode: "template",
-      template: {
+      mode: "global",
+      global: {
         enabled: Boolean(legacy.enabled),
         monthlyTotal: Number(legacy.monthly?.amount || 0),
         categories: legacy.categories || {},
       },
-      overrides: {},
+      monthly: {},
     };
     localStorage.setItem(BUDGET_V2_KEY, JSON.stringify(migrated));
   } catch (error) {
@@ -208,13 +211,13 @@ const loadBudgets = () => {
     const parsed = JSON.parse(raw);
     return {
       currency: parsed.currency || "EUR",
-      mode: parsed.mode === "monthly" ? "monthly" : "template",
-      template: {
-        enabled: Boolean(parsed.template?.enabled),
-        monthlyTotal: Number(parsed.template?.monthlyTotal || 0),
-        categories: parsed.template?.categories || {},
+      mode: parsed.mode === "monthly" ? "monthly" : "global",
+      global: {
+        enabled: Boolean(parsed.global?.enabled),
+        monthlyTotal: Number(parsed.global?.monthlyTotal || 0),
+        categories: parsed.global?.categories || {},
       },
-      overrides: parsed.overrides || {},
+      monthly: parsed.monthly || {},
     };
   } catch (error) {
     return { ...budgetState };
@@ -409,33 +412,38 @@ const getSelectedYearMonth = () => {
   return `${year}-${monthIndex}`;
 };
 
-const getActiveBudgetForMonth = (yyyyMM) => {
+const buildBudgetMonthOptions = () => {
+  const selectedYear = yearSelect.value;
+  if (!budgetMonthSelect) {
+    return;
+  }
+  budgetMonthSelect.innerHTML = "";
+  monthNames.forEach((name, index) => {
+    const option = document.createElement("option");
+    option.value = `${selectedYear}-${String(index + 1).padStart(2, "0")}`;
+    option.textContent = `${name.charAt(0).toUpperCase() + name.slice(1)} ${selectedYear}`;
+    budgetMonthSelect.appendChild(option);
+  });
+};
+
+const getBudgetForSelectedMonth = (yyyyMM) => {
   if (budgetState.mode === "monthly") {
-    const override = budgetState.overrides?.[yyyyMM];
-    if (override?.enabled) {
+    const monthlyBudget = budgetState.monthly?.[yyyyMM];
+    if (monthlyBudget?.enabled) {
       return {
         enabled: true,
-        monthlyTotal: Number(override.monthlyTotal || 0),
-        categories: override.categories || {},
+        monthlyTotal: Number(monthlyBudget.monthlyTotal || 0),
+        categories: monthlyBudget.categories || {},
         currency: budgetState.currency || "EUR",
       };
     }
     return null;
   }
-  const override = budgetState.overrides?.[yyyyMM];
-  if (override?.enabled) {
+  if (budgetState.global?.enabled) {
     return {
       enabled: true,
-      monthlyTotal: Number(override.monthlyTotal || 0),
-      categories: override.categories || {},
-      currency: budgetState.currency || "EUR",
-    };
-  }
-  if (budgetState.template?.enabled) {
-    return {
-      enabled: true,
-      monthlyTotal: Number(budgetState.template.monthlyTotal || 0),
-      categories: budgetState.template.categories || {},
+      monthlyTotal: Number(budgetState.global.monthlyTotal || 0),
+      categories: budgetState.global.categories || {},
       currency: budgetState.currency || "EUR",
     };
   }
@@ -470,7 +478,7 @@ const getBudgetProgress = (spent, budgetAmount) => {
 };
 
 const updateMonthlyBudgetBar = (filtered) => {
-  const activeBudget = getActiveBudgetForMonth(getSelectedYearMonth());
+  const activeBudget = getBudgetForSelectedMonth(getSelectedYearMonth());
   if (!activeBudget || activeBudget.monthlyTotal <= 0) {
     monthlyBudgetBar.classList.remove("is-visible");
     monthlyBudgetBar.setAttribute("aria-hidden", "true");
@@ -492,7 +500,7 @@ const updateMonthlyBudgetBar = (filtered) => {
 };
 
 const buildCategoryBudgetBar = (category, subtotal, currency) => {
-  const activeBudget = getActiveBudgetForMonth(getSelectedYearMonth());
+  const activeBudget = getBudgetForSelectedMonth(getSelectedYearMonth());
   const budgetAmount = activeBudget?.categories?.[category];
   if (!activeBudget || !budgetAmount || budgetAmount <= 0) {
     return null;
@@ -532,7 +540,22 @@ const setWizardStep = (step) => {
     budgetStepRef.textContent = `Presupuesto mensual: ${formatAmount(
       Number(budgetMonthlyAmount.value || 0)
     )} ${budgetMonthlyCurrency.value}`;
-    budgetStepMonth.textContent = `Mes seleccionado: ${getSelectedYearMonth()}`;
+    if (budgetState.mode === "monthly") {
+      budgetStepMonth.textContent = `Mes del presupuesto: ${
+        budgetMonthSelect?.value || getSelectedYearMonth()
+      }`;
+    } else {
+      budgetStepMonth.textContent = "";
+    }
+  }
+  if (step === 1) {
+    if (budgetState.mode === "monthly") {
+      buildBudgetMonthOptions();
+      budgetMonthSelector?.classList.add("is-visible");
+      budgetMonthSelect.value = budgetMonthSelect.value || getSelectedYearMonth();
+    } else {
+      budgetMonthSelector?.classList.remove("is-visible");
+    }
   }
 };
 
@@ -561,16 +584,15 @@ const loadBudgetIntoWizard = (settings) => {
     const category = input.dataset.categoryBudget;
     input.value = settings.categories?.[category] ?? "";
   });
-  if (step === 2) {
-    budgetStepRef.textContent = `Presupuesto mensual: ${formatAmount(
-      Number(budgetMonthlyAmount.value || 0)
-    )} ${budgetMonthlyCurrency.value}`;
+  if (budgetState.mode === "monthly" && budgetMonthSelect) {
+    buildBudgetMonthOptions();
+    budgetMonthSelect.value = getSelectedYearMonth();
   }
 };
 
 const getEditableBudgetForMonth = (yyyyMM) => {
   if (budgetState.mode === "monthly") {
-    const override = budgetState.overrides?.[yyyyMM];
+    const override = budgetState.monthly?.[yyyyMM];
     return {
       monthlyTotal: override?.monthlyTotal || 0,
       categories: override?.categories || {},
@@ -578,8 +600,8 @@ const getEditableBudgetForMonth = (yyyyMM) => {
     };
   }
   return {
-    monthlyTotal: budgetState.template?.monthlyTotal || 0,
-    categories: budgetState.template?.categories || {},
+    monthlyTotal: budgetState.global?.monthlyTotal || 0,
+    categories: budgetState.global?.categories || {},
     currency: budgetState.currency || "EUR",
   };
 };
@@ -600,6 +622,11 @@ const buildWizardSummary = () => {
       budgetSummaryCategories.appendChild(item);
     }
   });
+  if (step === 2) {
+    budgetStepRef.textContent = `Presupuesto mensual: ${formatAmount(
+      Number(budgetMonthlyAmount.value || 0)
+    )} ${budgetMonthlyCurrency.value}`;
+  }
 };
 
 const applyBudgetSettings = () => {
@@ -618,14 +645,14 @@ const applyBudgetSettings = () => {
 
   budgetState.currency = budgetMonthlyCurrency.value;
   if (budgetState.mode === "monthly") {
-    const monthKey = getSelectedYearMonth();
-    budgetState.overrides[monthKey] = {
+    const monthKey = budgetMonthSelect?.value || getSelectedYearMonth();
+    budgetState.monthly[monthKey] = {
       enabled: true,
       monthlyTotal: monthlyAmount,
       categories,
     };
   } else {
-    budgetState.template = {
+    budgetState.global = {
       enabled: true,
       monthlyTotal: monthlyAmount,
       categories,
@@ -637,8 +664,20 @@ const applyBudgetSettings = () => {
 
 const updateBudgetButtons = () => {
   const cta = document.querySelector(".vg-budget-cta");
-  const active = getActiveBudgetForMonth(getSelectedYearMonth());
-  cta.classList.toggle("is-enabled", Boolean(active?.enabled));
+  const active = getBudgetForSelectedMonth(getSelectedYearMonth());
+  const hasActive = Boolean(active?.enabled);
+  if (budgetState.mode === "monthly") {
+    budgetMonthlyNote.classList.toggle("is-visible", !hasActive);
+    budgetStartBtn.textContent = "Añadir presupuesto para este mes";
+    budgetEditBtn.textContent = "Editar presupuesto de este mes";
+    budgetDisableBtn.textContent = "Quitar presupuesto de este mes";
+  } else {
+    budgetMonthlyNote.classList.remove("is-visible");
+    budgetStartBtn.textContent = "Añadir presupuesto";
+    budgetEditBtn.textContent = "Editar presupuesto";
+    budgetDisableBtn.textContent = "Desactivar presupuesto";
+  }
+  cta.classList.toggle("is-enabled", hasActive);
 };
 
 const setupBudgetTooltip = (bar) => {
@@ -676,7 +715,7 @@ const buildBudgetSeriesForYear = (year) => {
   const totals = [];
   for (let month = 1; month <= 12; month += 1) {
     const key = `${year}-${String(month).padStart(2, "0")}`;
-    const active = getActiveBudgetForMonth(key);
+    const active = getBudgetForSelectedMonth(key);
     totals.push(active?.monthlyTotal ? active.monthlyTotal : null);
   }
   return totals;
@@ -864,9 +903,8 @@ const renderDonutChart = (expenses, year, month) => {
     const date = new Date(expense.date);
     return date.getFullYear() === year && date.getMonth() === month;
   });
-  const currencyCode = budgetState.enabled
-    ? budgetState.monthly.currency
-    : fallbackExpense?.currency || "EUR";
+  const budgetForMonth = getBudgetForSelectedMonth(`${year}-${String(month).padStart(2, "0")}`);
+  const currencyCode = budgetForMonth?.currency || fallbackExpense?.currency || "EUR";
   totals.forEach((item) => {
     const row = document.createElement("div");
     row.className = "vg-donut-item";
@@ -1045,7 +1083,8 @@ const renderExpenses = () => {
     subtotal.textContent = buildAmountLabel(subtotalTotals);
     meta.appendChild(subtotal);
 
-    const currencyForBudget = budgetState.monthly.currency;
+    const activeBudget = getBudgetForSelectedMonth(getSelectedYearMonth());
+    const currencyForBudget = activeBudget?.currency || "EUR";
     const subtotalForCurrency = grouped[category]
       .filter((expense) => expense.currency === currencyForBudget)
       .reduce((sum, expense) => sum + expense.amount, 0);
@@ -1355,7 +1394,7 @@ const setupBudgets = () => {
   Object.assign(budgetState, loadBudgets());
   updateBudgetButtons();
   budgetModeTemplate.addEventListener("click", () => {
-    budgetState.mode = "template";
+    budgetState.mode = "global";
     saveBudgets(budgetState);
     setWizardStep(1);
   });
@@ -1377,14 +1416,14 @@ const setupBudgets = () => {
   budgetDisableBtn.addEventListener("click", () => {
     const monthKey = getSelectedYearMonth();
     if (budgetState.mode === "monthly") {
-      budgetState.overrides[monthKey] = {
-        ...(budgetState.overrides[monthKey] || {}),
+      budgetState.monthly[monthKey] = {
+        ...(budgetState.monthly[monthKey] || {}),
         enabled: false,
-        monthlyTotal: budgetState.overrides[monthKey]?.monthlyTotal || 0,
-        categories: budgetState.overrides[monthKey]?.categories || {},
+        monthlyTotal: budgetState.monthly[monthKey]?.monthlyTotal || 0,
+        categories: budgetState.monthly[monthKey]?.categories || {},
       };
     } else {
-      budgetState.template.enabled = false;
+      budgetState.global.enabled = false;
     }
     saveBudgets(budgetState);
     updateBudgetButtons();

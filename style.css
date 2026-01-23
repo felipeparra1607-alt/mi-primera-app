@@ -17,6 +17,11 @@
   box-sizing: border-box;
 }
 
+.is-hidden {
+  display: none !important;
+  pointer-events: none !important;
+}
+
 body {
   margin: 0;
   background: var(--bg-dark);
@@ -445,6 +450,21 @@ select:focus,
   gap: 12px;
 }
 
+.vg-budget-note {
+  display: none;
+  background: var(--muted-bg);
+  color: #1f2a44;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 10px 14px;
+  border-radius: 14px;
+  margin-bottom: 16px;
+}
+
+.vg-budget-note.is-visible {
+  display: inline-flex;
+}
+
 .vg-budget-cta.is-enabled .vg-budget-actions {
   display: flex;
 }
@@ -791,6 +811,16 @@ select:focus,
   margin: 0;
   font-size: 22px;
   font-weight: 900;
+}
+
+.vg-step-panel-month {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vg-step-panel-month.is-visible {
+  display: flex;
 }
 
 .vg-step-ref {
@@ -1176,6 +1206,10 @@ select:focus,
   }
 
   .vg-btn {
+    width: 100%;
+  }
+
+  .vg-budget-note {
     width: 100%;
   }
 
