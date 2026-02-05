@@ -1228,22 +1228,46 @@ select:focus,
   transform: translateX(-50%) translateY(0);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
+  body {
+    background: #ffffff;
+  }
+
   .app {
-    margin: 24px 16px 60px;
-    padding: 18px;
+    max-width: 100%;
+    min-height: 100dvh;
+    margin: 0;
+    padding: 14px 14px 20px;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .app-header {
-    height: 84px;
+    display: none;
   }
 
-  .app-header h1 {
-    font-size: 38px;
+  .tabs {
+    padding: 5px;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .tab-button {
+    padding: 10px 12px;
+    font-size: 14px;
   }
 
   h2 {
     font-size: 24px;
+    margin-bottom: 14px;
+  }
+
+  #tab-add h2 {
+    text-align: center;
+  }
+
+  .field {
+    margin-bottom: 16px;
   }
 
   .amount-control {
@@ -1251,7 +1275,35 @@ select:focus,
   }
 
   .categories {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+  }
+
+  .cat-card {
+    border: none;
+    box-shadow: none;
+    border-radius: 14px;
+    padding: 10px 8px 8px;
+    min-height: 0;
+    background: transparent;
+  }
+
+  .cat-card.selected {
+    border: none;
+    box-shadow: 0 0 0 1px rgba(31, 107, 255, 0.24);
+    background: #f8faff;
+  }
+
+  .cat-circle {
+    width: 68px;
+    height: 68px;
+    font-size: 38px;
+  }
+
+  .cat-name {
+    margin-top: 8px;
+    font-size: 12px;
+    letter-spacing: 0.9px;
   }
 
   .vg-delete-btn {
