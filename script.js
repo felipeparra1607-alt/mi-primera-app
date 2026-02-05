@@ -1,8 +1,12 @@
 import { supabase } from "./supabaseClient.js";
-const STORAGE_KEY = "fluxo_expenses";
+
 const BUDGET_KEY = "fluxo_budgets";
 const BUDGET_V2_KEY = "fluxo_budgets_v2";
 const CURRENCY_KEY = "fluxo_currency";
+
+let expensesCache = [];
+let activeSession = null;
+let isAuthModeSignUp = false;
 
 const state = {
   amount: 0,
@@ -116,6 +120,20 @@ const monthDonutList = document.getElementById("month-donut-list");
 const monthTotalBreakdown = document.getElementById("month-total-breakdown");
 const dateModeButtons = document.querySelectorAll(".mode-btn");
 
+const appShell = document.getElementById("app-shell");
+const authScreen = document.getElementById("auth-screen");
+const authLoader = document.getElementById("auth-loader");
+const authCard = document.getElementById("auth-card");
+const authEmail = document.getElementById("auth-email");
+const authPassword = document.getElementById("auth-password");
+const authSubmit = document.getElementById("auth-submit");
+const authToggle = document.getElementById("auth-toggle");
+const authSubtitle = document.getElementById("auth-subtitle");
+const authMessage = document.getElementById("auth-message");
+const logoutBtn = document.getElementById("logout-btn");
+const logoutBtnMobile = document.getElementById("logout-btn-mobile");
+
+
 const formatAmount = (amount) =>
   amount.toLocaleString("es-ES", {
     minimumFractionDigits: 2,
@@ -158,6 +176,91 @@ const toggleModal = (modal, show) => {
   modal.setAttribute("aria-hidden", String(!show));
 };
 
+const setAuthMessage = (message = "") => {
+  authMessage.textContent = message;
+};
+
+const setAuthLoading = (loading, message = "") => {
+  authLoader.classList.toggle("is-hidden", !loading);
+  authCard.classList.toggle("is-hidden", loading);
+  if (loading && message) {
+    authLoader.textContent = message;
+  }
+  if (!loading) {
+    authLoader.textContent = "Cargando sesión…";
+  }
+};
+
+const showLogin = () => {
+  authScreen.classList.remove("is-hidden");
+  authScreen.setAttribute("aria-hidden", "false");
+  appShell.classList.add("is-hidden");
+  appShell.setAttribute("aria-hidden", "true");
+  setAuthLoading(false);
+};
+
+const hideLogin = () => {
+  authScreen.classList.add("is-hidden");
+  authScreen.setAttribute("aria-hidden", "true");
+  appShell.classList.remove("is-hidden");
+  appShell.setAttribute("aria-hidden", "false");
+};
+
+const showAuthMode = (signUpMode) => {
+  isAuthModeSignUp = signUpMode;
+  authSubmit.textContent = signUpMode ? "Create account" : "Sign In";
+  authToggle.textContent = signUpMode
+    ? "Already have an account?"
+    : "Create account";
+  authSubtitle.textContent = signUpMode
+    ? "Create your account to sync your expenses"
+    : "Sign in to sync your expenses";
+  authPassword.autocomplete = signUpMode ? "new-password" : "current-password";
+  setAuthMessage("");
+};
+
+const getSession = async () => {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) {
+    throw error;
+  }
+  return data.session;
+};
+
+const signIn = async (email, password) => {
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    throw error;
+  }
+};
+
+const signUp = async (email, password) => {
+  const { error } = await supabase.auth.signUp({ email, password });
+  if (error) {
+    throw error;
+  }
+};
+
+const signOut = async () => {
+  const { error } = await supabase.auth.signOut();
+  if (error) {
+    throw error;
+  }
+};
+
+const getReadableAuthError = (error) => {
+  const msg = (error?.message || "").toLowerCase();
+  if (msg.includes("invalid login credentials")) return "Email o contraseña incorrectos.";
+  if (msg.includes("email not confirmed")) return "Debes confirmar tu email antes de entrar.";
+  if (msg.includes("already registered") || msg.includes("already been registered")) {
+    return "Ese email ya está registrado.";
+  }
+  if (msg.includes("password") && msg.includes("short")) {
+    return "La contraseña es demasiado corta.";
+  }
+  return error?.message || "Ha ocurrido un error de autenticación.";
+};
+
 const updateAmountDisplay = () => {
   amountDisplay.textContent = formatAmount(state.amount);
 };
@@ -172,18 +275,104 @@ const updateDateDisplay = () => {
   dateDisplay.textContent = formatDisplayDate(state.date);
 };
 
-const loadExpenses = () => {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  try {
-    return raw ? JSON.parse(raw) : [];
-  } catch (error) {
-    return [];
+const normalizeExpenseRecord = (record) => ({
+  id: String(record.id),
+  concept: record.concept || "",
+  amount: Number(record.amount || 0),
+  currency: record.currency || state.currency,
+  category: normalizeCategory(record.category || CATEGORY_FALLBACK),
+  dateISO: record.dateISO || record.date || new Date().toISOString().slice(0, 10),
+});
+
+const fetchExpensesFromSupabase = async () => {
+  const { data, error } = await supabase
+    .from("expenses")
+    .select("id, concept, amount, currency, category, date")
+    .order("date", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw error;
   }
+
+  expensesCache = (data || []).map((item) =>
+    normalizeExpenseRecord({
+      id: item.id,
+      concept: item.concept,
+      amount: item.amount,
+      currency: item.currency,
+      category: item.category,
+      dateISO: item.date,
+    })
+  );
+
+  return expensesCache;
 };
 
-const saveExpenses = (expenses) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
+const insertExpenseToSupabase = async (expense) => {
+  const payload = {
+    concept: expense.concept,
+    amount: Number(expense.amount),
+    currency: expense.currency,
+    category: expense.category,
+    date: expense.dateISO,
+  };
+
+  const { data, error } = await supabase
+    .from("expenses")
+    .insert(payload)
+    .select("id, concept, amount, currency, category, date")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  const normalized = normalizeExpenseRecord({
+    id: data.id,
+    concept: data.concept,
+    amount: data.amount,
+    currency: data.currency,
+    category: data.category,
+    dateISO: data.date,
+  });
+  expensesCache.unshift(normalized);
+  return normalized;
 };
+
+const deleteExpenseFromSupabase = async (expenseId) => {
+  const { error } = await supabase.from("expenses").delete().eq("id", expenseId);
+  if (error) {
+    throw error;
+  }
+  expensesCache = expensesCache.filter((entry) => entry.id !== String(expenseId));
+};
+
+const updateExpenseInSupabase = async (expenseId, updates) => {
+  const { data, error } = await supabase
+    .from("expenses")
+    .update(updates)
+    .eq("id", expenseId)
+    .select("id, concept, amount, currency, category, date")
+    .single();
+  if (error) {
+    throw error;
+  }
+  const normalized = normalizeExpenseRecord({
+    id: data.id,
+    concept: data.concept,
+    amount: data.amount,
+    currency: data.currency,
+    category: data.category,
+    dateISO: data.date,
+  });
+  expensesCache = expensesCache.map((entry) =>
+    entry.id === normalized.id ? normalized : entry
+  );
+  return normalized;
+};
+
+const loadExpenses = () => expensesCache;
 
 const migrateBudgets = () => {
   const existingV2 = localStorage.getItem(BUDGET_V2_KEY);
@@ -479,7 +668,7 @@ const sortExpensesForCategory = (expenses, category) => {
     if (mode === "amount") {
       return b.amount - a.amount;
     }
-    return new Date(b.date) - new Date(a.date);
+    return new Date(b.dateISO || b.date) - new Date(a.dateISO || a.date);
   });
 };
 
@@ -1151,10 +1340,15 @@ const renderExpenses = () => {
           item.offsetHeight;
           item.classList.add("is-removing");
           item.style.maxHeight = "0px";
-          setTimeout(() => {
-            const updated = loadExpenses().filter((entry) => entry.id !== expense.id);
-            saveExpenses(updated);
-            renderExpenses();
+          setTimeout(async () => {
+            try {
+              await deleteExpenseFromSupabase(expense.id);
+              renderExpenses();
+            } catch (error) {
+              item.classList.remove("is-removing");
+              item.style.maxHeight = "";
+              window.alert("No se pudo eliminar el gasto.");
+            }
           }, 180);
         });
 
@@ -1213,7 +1407,7 @@ const resetForm = () => {
   state.category = null;
 };
 
-const handleSave = () => {
+const handleSave = async () => {
   const concept = conceptInput.value.trim();
   if (!concept) {
     window.alert("Escribe un concepto.");
@@ -1229,7 +1423,6 @@ const handleSave = () => {
   }
 
   const expense = {
-    id: `${Date.now()}-${Math.floor(Math.random() * 10000)}`,
     concept,
     amount: Number(state.amount),
     currency: state.currency,
@@ -1237,13 +1430,18 @@ const handleSave = () => {
     dateISO: state.date.toISOString().slice(0, 10),
   };
 
-  const expenses = loadExpenses();
-  expenses.push(expense);
-  saveExpenses(expenses);
-  showToast();
-  buildYearOptions(expenses);
-  renderExpenses();
-  resetForm();
+  saveBtn.disabled = true;
+  try {
+    await insertExpenseToSupabase(expense);
+    showToast();
+    buildYearOptions(loadExpenses());
+    renderExpenses();
+    resetForm();
+  } catch (error) {
+    window.alert("No se pudo guardar el gasto.");
+  } finally {
+    saveBtn.disabled = false;
+  }
 };
 
 const setupTabs = () => {
@@ -1470,7 +1668,75 @@ const setupBudgets = () => {
   });
 };
 
-const init = () => {
+const refreshAppData = async () => {
+  setAuthLoading(true, "Sincronizando gastos…");
+  try {
+    const expenses = await fetchExpensesFromSupabase();
+    buildYearOptions(expenses);
+    buildMonthOptions();
+    renderExpenses();
+  } catch (error) {
+    window.alert("No se pudieron cargar los gastos desde Supabase.");
+  } finally {
+    setAuthLoading(false);
+  }
+};
+
+const setupAuth = () => {
+  showAuthMode(false);
+
+  authCard.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const email = authEmail.value.trim();
+    const password = authPassword.value;
+    if (!email || !password) {
+      setAuthMessage("Completa email y password.");
+      return;
+    }
+
+    authSubmit.disabled = true;
+    setAuthMessage("");
+    try {
+      if (isAuthModeSignUp) {
+        await signUp(email, password);
+      } else {
+        await signIn(email, password);
+      }
+    } catch (error) {
+      setAuthMessage(getReadableAuthError(error));
+    } finally {
+      authSubmit.disabled = false;
+    }
+  });
+
+  authToggle.addEventListener("click", () => {
+    showAuthMode(!isAuthModeSignUp);
+  });
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      window.alert("No se pudo cerrar sesión.");
+    }
+  };
+
+  logoutBtn.addEventListener("click", handleLogout);
+  logoutBtnMobile.addEventListener("click", handleLogout);
+
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    activeSession = session;
+    if (!session) {
+      expensesCache = [];
+      showLogin();
+      return;
+    }
+    hideLogin();
+    await refreshAppData();
+  });
+};
+
+const init = async () => {
   setupTabs();
   setupAmountControl();
   setupCategorySelection();
@@ -1479,6 +1745,7 @@ const init = () => {
   setupFilters();
   setupBudgets();
   setupEvolution();
+  setupAuth();
 
   if (window.Chart) {
     Chart.defaults.font.family =
@@ -1493,12 +1760,27 @@ const init = () => {
   updateCurrency(state.currency);
   updateAmountDisplay();
   updateDateDisplay();
-  const expenses = loadExpenses();
-  buildYearOptions(expenses);
-  buildMonthOptions();
-  renderExpenses();
 
+  buildMonthOptions();
   saveBtn.addEventListener("click", handleSave);
+
+  showLogin();
+  setAuthLoading(true, "Cargando sesión…");
+  try {
+    const session = await getSession();
+    activeSession = session;
+    if (session) {
+      hideLogin();
+      await refreshAppData();
+    } else {
+      showLogin();
+      setAuthLoading(false);
+    }
+  } catch (error) {
+    showLogin();
+    setAuthLoading(false);
+    setAuthMessage("No se pudo iniciar sesión automáticamente.");
+  }
 };
 
 init();

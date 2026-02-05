@@ -13,10 +13,27 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main class="app">
+  <div class="auth-screen" id="auth-screen" aria-hidden="true">
+    <div class="auth-loader" id="auth-loader">Cargando sesión…</div>
+    <form class="auth-card is-hidden" id="auth-card">
+      <h1>Fluxo</h1>
+      <p id="auth-subtitle">Sign in to sync your expenses</p>
+      <label for="auth-email">Email</label>
+      <input id="auth-email" type="email" autocomplete="email" required />
+      <label for="auth-password">Password</label>
+      <input id="auth-password" type="password" autocomplete="current-password" required />
+      <button class="primary-btn auth-submit" type="submit" id="auth-submit">Sign In</button>
+      <button class="auth-toggle" type="button" id="auth-toggle">Create account</button>
+      <p class="auth-message" id="auth-message" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+
+  <main class="app is-hidden" id="app-shell" aria-hidden="true">
     <header class="app-header">
       <h1>Fluxo</h1>
+      <button class="logout-btn" type="button" id="logout-btn" aria-label="Cerrar sesión">Logout</button>
     </header>
+    <button class="logout-btn logout-btn-mobile" type="button" id="logout-btn-mobile" aria-label="Cerrar sesión">Logout</button>
 
     <section class="tabs" role="tablist" aria-label="Navegación principal">
       <button class="tab-button is-active" type="button" role="tab" aria-selected="true" data-tab="add">
