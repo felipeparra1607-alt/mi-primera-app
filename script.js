@@ -1,3 +1,4 @@
+import { supabase } from "./supabaseClient.js";
 const STORAGE_KEY = "fluxo_expenses";
 const BUDGET_KEY = "fluxo_budgets";
 const BUDGET_V2_KEY = "fluxo_budgets_v2";
