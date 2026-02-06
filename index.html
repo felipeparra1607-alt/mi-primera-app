@@ -4,13 +4,38 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fluxo · Control de gastos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap"
+    rel="stylesheet"
+  />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main class="app">
+  <div class="auth-screen" id="auth-screen" aria-hidden="true">
+    <div class="auth-loader" id="auth-loader">Cargando sesión…</div>
+    <form class="auth-card is-hidden" id="auth-card">
+      <h1>Fluxo</h1>
+      <p id="auth-subtitle">Sign in to sync your expenses</p>
+      <label for="auth-email">Email</label>
+      <input id="auth-email" type="email" autocomplete="email" required />
+      <label for="auth-password">Password</label>
+      <input id="auth-password" type="password" autocomplete="current-password" required />
+      <button class="primary-btn auth-submit" type="submit" id="auth-submit">Sign In</button>
+      <button class="auth-toggle" type="button" id="auth-toggle">Create account</button>
+      <p class="auth-message" id="auth-message" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+
+  <main class="app is-hidden" id="app-shell" aria-hidden="true">
     <header class="app-header">
       <h1>Fluxo</h1>
+      <button class="logout-btn" type="button" id="logout-btn" aria-label="Cerrar sesión">Logout</button>
     </header>
+    <div class="mobile-topbar">
+      <button class="settings-btn" type="button" id="settings-btn" aria-label="Ajustes">⚙️</button>
+    </div>
 
     <section class="tabs" role="tablist" aria-label="Navegación principal">
       <button class="tab-button is-active" type="button" role="tab" aria-selected="true" data-tab="add">
@@ -25,7 +50,7 @@
       <h2>Añadir gasto</h2>
 
       <div class="field">
-        <label for="concept">CONCEPTO</label>
+        <label for="concept" class="center-label">CONCEPTO</label>
         <input id="concept" name="concept" type="text" placeholder="EJ: SUPERMERCADO" autocomplete="off" />
       </div>
 
@@ -38,7 +63,7 @@
           </div>
           <button class="amount-btn" type="button" data-action="increment" aria-label="Sumar">+</button>
           <button class="currency-pill" type="button" id="currency-pill" aria-label="Seleccionar divisa">
-            EUR €
+            EUR
           </button>
         </div>
         <input class="amount-input" id="amount-input" type="number" inputmode="decimal" min="0" step="0.01" aria-label="Cantidad" />
@@ -80,7 +105,7 @@
             <div class="cat-name">MASCOTA</div>
           </div>
           <div class="cat-card" data-category="Niños">
-            <button class="cat-circle" type="button" aria-label="Niños" data-color="ninos">🧒</button>
+            <button class="cat-circle" type="button" aria-label="Niños" data-color="ninos">👶</button>
             <div class="cat-name">NIÑOS</div>
           </div>
           <div class="cat-card" data-category="Empleada">
@@ -103,13 +128,12 @@
 
       <div class="vg-view" id="view-budget">
         <div class="vg-budget-cta" id="budget-cta">
-          <button class="vg-btn vg-btn-primary" type="button" id="budget-start">Añadir presupuesto</button>
+          <button class="vg-btn vg-btn-primary" type="button" id="budget-start">Configurar presupuesto</button>
           <div class="vg-budget-actions">
             <button class="vg-btn vg-btn-secondary" type="button" id="budget-edit">Editar presupuesto</button>
-            <button class="vg-btn vg-btn-danger" type="button" id="budget-disable">Desactivar presupuesto</button>
+            <button class="vg-btn vg-btn-danger" type="button" id="budget-disable">Quitar presupuesto</button>
           </div>
         </div>
-        <div class="vg-budget-note" id="budget-monthly-note">Este mes no tiene presupuesto definido</div>
 
         <div class="select-field">
           <label for="year-select">AÑO</label>
@@ -129,7 +153,7 @@
             <div class="vg-chart">
               <canvas id="evolution-chart"></canvas>
               <div class="vg-chart-empty" id="evolution-empty">
-                Activa presupuesto para ver esta comparación
+                Configura un presupuesto para ver esta comparación.
               </div>
             </div>
           </div>
@@ -148,16 +172,20 @@
           <div class="vg-donut-content">
             <div class="vg-donut-chart">
               <canvas id="month-donut"></canvas>
-              <div class="vg-donut-empty" id="month-donut-empty">Sin gastos en este mes</div>
+              <div class="vg-donut-empty" id="month-donut-empty">Sin gastos este mes</div>
             </div>
             <div class="vg-donut-list" id="month-donut-list"></div>
           </div>
         </section>
 
         <div class="monthly-total">
-          <span>Total del mes</span>
-          <strong id="month-total">0,00 €</strong>
+          <div class="monthly-total-label">
+            <span>Total del mes</span>
+            <strong id="month-total">0,00 €</strong>
+          </div>
+          <div class="monthly-total-breakdown" id="month-total-breakdown"></div>
         </div>
+        <div class="vg-budget-note" id="budget-monthly-note">Este mes no tienes presupuesto definido</div>
         <div class="vg-budget-row">
           <div class="vg-budget-bar" id="monthly-budget-bar" aria-hidden="true">
             <span class="vg-budget-fill" id="monthly-budget-fill"></span>
@@ -171,16 +199,20 @@
 
       <div class="vg-wizard" id="budget-wizard" aria-hidden="true">
         <button class="vg-back-btn" type="button" id="budget-back">← Volver</button>
-        <div class="vg-step">Paso <span id="budget-step">0</span> de 4</div>
+        <div class="vg-step">Paso <span id="budget-step">1</span> de 3</div>
 
         <div class="vg-step-panel is-active" data-step="0">
-          <h3>Tipo de presupuesto</h3>
-          <button class="vg-btn vg-btn-primary" type="button" id="budget-mode-template">
-            Misma cantidad todos los meses
-          </button>
-          <button class="vg-btn vg-btn-secondary" type="button" id="budget-mode-monthly">
-            Cantidad individual por mes
-          </button>
+          <h3>¿Cómo quieres tu presupuesto?</h3>
+          <div class="vg-radio-group">
+            <button class="vg-radio-card" type="button" id="budget-mode-template">
+              <span class="vg-radio-title">Mismo presupuesto todos los meses</span>
+              <span class="vg-radio-note">Usa el mismo monto mensual en todo el año.</span>
+            </button>
+            <button class="vg-radio-card" type="button" id="budget-mode-monthly">
+              <span class="vg-radio-title">Presupuesto diferente por mes</span>
+              <span class="vg-radio-note">Configura un monto distinto según el mes.</span>
+            </button>
+          </div>
         </div>
 
         <div class="vg-step-panel" data-step="1">
@@ -191,14 +223,6 @@
           </div>
           <label for="budget-month-amount">Cantidad mensual</label>
           <input id="budget-month-amount" type="number" inputmode="decimal" min="0" step="0.01" />
-          <label for="budget-month-currency">Divisa</label>
-          <select id="budget-month-currency">
-            <option value="EUR">EUR</option>
-            <option value="USD">USD</option>
-            <option value="GBP">GBP</option>
-            <option value="COP">COP</option>
-            <option value="MXN">MXN</option>
-          </select>
           <button class="primary-btn" type="button" id="budget-next-1">Siguiente</button>
         </div>
 
@@ -250,21 +274,21 @@
           </div>
           <div class="vg-step-actions">
             <button class="vg-btn vg-btn-secondary" type="button" id="budget-skip">Omitir</button>
-            <button class="primary-btn" type="button" id="budget-next-2">Siguiente</button>
+            <button class="primary-btn" type="button" id="budget-activate">Activar presupuesto</button>
           </div>
-        </div>
-
-        <div class="vg-step-panel" data-step="3">
-          <h3>Resumen del presupuesto</h3>
-          <div class="vg-summary">
-            <p id="budget-summary-month"></p>
-            <div id="budget-summary-categories"></div>
-          </div>
-          <button class="vg-btn vg-btn-primary" type="button" id="budget-activate">Guardar presupuesto</button>
         </div>
       </div>
     </section>
   </main>
+
+
+  <div class="modal" id="settings-modal" aria-hidden="true">
+    <div class="modal-overlay" data-close="settings"></div>
+    <div class="modal-card settings-card" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <h3 id="settings-title">Ajustes</h3>
+      <button class="vg-btn vg-btn-danger settings-logout" type="button" id="settings-logout">Logout</button>
+    </div>
+  </div>
 
   <div class="modal" id="currency-modal" aria-hidden="true">
     <div class="modal-overlay" data-close="currency"></div>
@@ -288,6 +312,11 @@
         <button type="button" class="pill" data-quick="today">Hoy</button>
         <button type="button" class="pill" data-quick="yesterday">Ayer</button>
       </div>
+      <div class="date-mode">
+        <button type="button" class="mode-btn is-active" data-mode="day">Día</button>
+        <button type="button" class="mode-btn" data-mode="month">Mes</button>
+        <button type="button" class="mode-btn" data-mode="year">Año</button>
+      </div>
       <div class="date-pills" id="date-pills"></div>
       <button class="primary-btn" type="button" id="confirm-date">Listo</button>
     </div>
@@ -298,6 +327,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="script.js"></script>
+  <script type="module" src="./script.js"></script>
 </body>
 </html>
