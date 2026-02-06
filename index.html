@@ -33,7 +33,9 @@
       <h1>Fluxo</h1>
       <button class="logout-btn" type="button" id="logout-btn" aria-label="Cerrar sesión">Logout</button>
     </header>
-    <button class="logout-btn logout-btn-mobile" type="button" id="logout-btn-mobile" aria-label="Cerrar sesión">Logout</button>
+    <div class="mobile-topbar">
+      <button class="settings-btn" type="button" id="settings-btn" aria-label="Ajustes">⚙️</button>
+    </div>
 
     <section class="tabs" role="tablist" aria-label="Navegación principal">
       <button class="tab-button is-active" type="button" role="tab" aria-selected="true" data-tab="add">
@@ -278,6 +280,15 @@
       </div>
     </section>
   </main>
+
+
+  <div class="modal" id="settings-modal" aria-hidden="true">
+    <div class="modal-overlay" data-close="settings"></div>
+    <div class="modal-card settings-card" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <h3 id="settings-title">Ajustes</h3>
+      <button class="vg-btn vg-btn-danger settings-logout" type="button" id="settings-logout">Logout</button>
+    </div>
+  </div>
 
   <div class="modal" id="currency-modal" aria-hidden="true">
     <div class="modal-overlay" data-close="currency"></div>

@@ -115,17 +115,28 @@ body {
   cursor: pointer;
 }
 
-.logout-btn-mobile {
+.mobile-topbar {
   display: none;
-  margin: 0 0 10px auto;
+}
+
+.settings-btn {
   border: 1px solid var(--border);
   background: #fff;
   color: #0b1220;
-  border-radius: 999px;
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 800;
+  border-radius: 12px;
+  width: 42px;
+  height: 38px;
+  font-size: 20px;
   cursor: pointer;
+}
+
+.settings-card {
+  max-width: 280px;
+  gap: 12px;
+}
+
+.settings-logout {
+  width: 100%;
 }
 
 button,
@@ -1346,9 +1357,11 @@ select:focus,
     display: none;
   }
 
-  .logout-btn-mobile {
-    display: inline-flex;
-    align-items: center;
+  .mobile-topbar {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 6px);
+    margin-bottom: 8px;
   }
 
   .tabs {
@@ -1376,7 +1389,75 @@ select:focus,
   }
 
   .amount-control {
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "currency"
+      "display";
+    gap: 8px;
+  }
+
+  .amount-control .amount-btn {
+    display: none;
+  }
+
+  .currency-pill {
+    grid-area: currency;
+    justify-self: center;
+  }
+
+  .amount-display {
+    grid-area: display;
+  }
+
+  .modal-card h3,
+  .mode-btn,
+  .pill {
+    color: #0b1220;
+    -webkit-text-fill-color: #0b1220;
+  }
+
+  .mode-btn,
+  .pill {
+    font-size: 16px;
+    padding: 10px 18px;
+  }
+
+  .mode-btn.is-active,
+  .pill.is-active {
+    color: #1f6bff;
+    -webkit-text-fill-color: #1f6bff;
+  }
+
+  .categories {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+  }
+
+  .cat-card {
+    border: none;
+    box-shadow: none;
+    border-radius: 14px;
+    padding: 10px 8px 8px;
+    min-height: 0;
+    background: transparent;
+  }
+
+  .cat-card.selected {
+    border: none;
+    box-shadow: 0 0 0 1px rgba(31, 107, 255, 0.24);
+    background: #f8faff;
+  }
+
+  .cat-circle {
+    width: 68px;
+    height: 68px;
+    font-size: 38px;
+  }
+
+  .cat-name {
+    margin-top: 8px;
+    font-size: 12px;
+    letter-spacing: 0.9px;
   }
 
   .categories {

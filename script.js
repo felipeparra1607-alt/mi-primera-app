@@ -131,7 +131,9 @@ const authToggle = document.getElementById("auth-toggle");
 const authSubtitle = document.getElementById("auth-subtitle");
 const authMessage = document.getElementById("auth-message");
 const logoutBtn = document.getElementById("logout-btn");
-const logoutBtnMobile = document.getElementById("logout-btn-mobile");
+const settingsBtn = document.getElementById("settings-btn");
+const settingsModal = document.getElementById("settings-modal");
+const settingsLogoutBtn = document.getElementById("settings-logout");
 
 
 const formatAmount = (amount) =>
@@ -458,6 +460,9 @@ const setCategory = (category, button) => {
     button.blur();
   }
 };
+
+const openSettingsModal = () => toggleModal(settingsModal, true);
+const closeSettingsModal = () => toggleModal(settingsModal, false);
 
 const openCurrencyModal = () => toggleModal(currencyModal, true);
 const closeCurrencyModal = () => toggleModal(currencyModal, false);
@@ -1520,6 +1525,13 @@ const setupCategorySelection = () => {
   });
 };
 
+const setupSettingsMenu = () => {
+  settingsBtn.addEventListener("click", openSettingsModal);
+  settingsModal
+    .querySelector(".modal-overlay")
+    .addEventListener("click", closeSettingsModal);
+};
+
 const setupCurrencyModal = () => {
   currencyPill.addEventListener("click", openCurrencyModal);
   currencyModal.querySelectorAll("button[data-currency]").forEach((btn) => {
@@ -1715,6 +1727,7 @@ const setupAuth = () => {
 
   const handleLogout = async () => {
     try {
+      closeSettingsModal();
       await signOut();
     } catch (error) {
       window.alert("No se pudo cerrar sesión.");
@@ -1722,7 +1735,7 @@ const setupAuth = () => {
   };
 
   logoutBtn.addEventListener("click", handleLogout);
-  logoutBtnMobile.addEventListener("click", handleLogout);
+  settingsLogoutBtn.addEventListener("click", handleLogout);
 
   supabase.auth.onAuthStateChange(async (event, session) => {
     activeSession = session;
@@ -1740,6 +1753,7 @@ const init = async () => {
   setupTabs();
   setupAmountControl();
   setupCategorySelection();
+  setupSettingsMenu();
   setupCurrencyModal();
   setupDateModal();
   setupFilters();
