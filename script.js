@@ -7,6 +7,9 @@ const CURRENCY_KEY = "fluxo_currency";
 let expensesCache = [];
 let activeSession = null;
 let isAuthModeSignUp = false;
+let hasInitialized = false;
+let isSavingExpense = false;
+let isLoggingOut = false;
 
 const state = {
   amount: 0,
@@ -176,6 +179,43 @@ const formatMonthKey = (monthKey) => {
 const toggleModal = (modal, show) => {
   modal.classList.toggle("is-visible", show);
   modal.setAttribute("aria-hidden", String(!show));
+};
+
+const closeAllModals = () => {
+  [currencyModal, dateModal, settingsModal].forEach((modal) => {
+    if (!modal) {
+      return;
+    }
+    modal.classList.remove("is-visible");
+    modal.setAttribute("aria-hidden", "true");
+  });
+};
+
+const safeResetUI = async () => {
+  closeAllModals();
+  isSavingExpense = false;
+  isLoggingOut = false;
+  saveBtn.disabled = false;
+  try {
+    const session = await getSession();
+    if (session) {
+      hideLogin();
+      await refreshAppData();
+    } else {
+      showLogin();
+    }
+  } catch (error) {
+    console.error(error);
+    showLogin();
+  }
+};
+
+const withSafeHandler = (handler, message) => async (event) => {
+  try {
+    await handler(event);
+  } catch (error) {
+    handleUIError(error, message);
+  }
 };
 
 const setAuthMessage = (message = "") => {
@@ -446,9 +486,18 @@ const saveBudgets = (budgets) => {
   localStorage.setItem(BUDGET_V2_KEY, JSON.stringify(budgets));
 };
 
-const showToast = () => {
+const showToast = (message = "✅ Gasto guardado") => {
+  const text = toast.querySelector("span");
+  if (text) {
+    text.textContent = message;
+  }
   toast.classList.add("is-visible");
   setTimeout(() => toast.classList.remove("is-visible"), 1400);
+};
+
+const handleUIError = (error, message = "Ocurrió un error. Intenta de nuevo.") => {
+  console.error(error);
+  showToast(message);
 };
 
 const setCategory = (category, button) => {
@@ -1413,6 +1462,9 @@ const resetForm = () => {
 };
 
 const handleSave = async () => {
+  if (isSavingExpense) {
+    return;
+  }
   const concept = conceptInput.value.trim();
   if (!concept) {
     window.alert("Escribe un concepto.");
@@ -1435,35 +1487,43 @@ const handleSave = async () => {
     dateISO: state.date.toISOString().slice(0, 10),
   };
 
+  isSavingExpense = true;
   saveBtn.disabled = true;
   try {
+    const session = await getSession();
+    if (!session) {
+      closeAllModals();
+      showLogin();
+      return;
+    }
     await insertExpenseToSupabase(expense);
-    showToast();
+    showToast("✅ Gasto guardado");
     buildYearOptions(loadExpenses());
     renderExpenses();
     resetForm();
   } catch (error) {
-    window.alert("No se pudo guardar el gasto.");
+    handleUIError(error, "No se pudo guardar el gasto.");
   } finally {
+    isSavingExpense = false;
     saveBtn.disabled = false;
   }
 };
 
 const setupTabs = () => {
   tabs.forEach((tab) => {
-    tab.addEventListener("click", () => {
-      const target = tab.dataset.tab;
-      tabs.forEach((btn) => {
-        btn.classList.toggle("is-active", btn === tab);
-        btn.setAttribute("aria-selected", String(btn === tab));
-      });
-      panels.forEach((panel) => {
-        panel.classList.toggle(
-          "is-visible",
-          panel.id === `tab-${target}`
-        );
-      });
-    });
+    tab.addEventListener(
+      "click",
+      withSafeHandler(() => {
+        const target = tab.dataset.tab;
+        tabs.forEach((btn) => {
+          btn.classList.toggle("is-active", btn === tab);
+          btn.setAttribute("aria-selected", String(btn === tab));
+        });
+        panels.forEach((panel) => {
+          panel.classList.toggle("is-visible", panel.id === `tab-${target}`);
+        });
+      }, "No se pudo cambiar de pestaña.")
+    );
   });
 };
 
@@ -1526,80 +1586,127 @@ const setupCategorySelection = () => {
 };
 
 const setupSettingsMenu = () => {
-  settingsBtn.addEventListener("click", openSettingsModal);
+  settingsBtn.addEventListener(
+    "click",
+    withSafeHandler(() => {
+      openSettingsModal();
+    }, "No se pudo abrir Ajustes.")
+  );
   settingsModal
     .querySelector(".modal-overlay")
-    .addEventListener("click", closeSettingsModal);
+    .addEventListener(
+      "click",
+      withSafeHandler(() => {
+        closeSettingsModal();
+      }, "No se pudo cerrar Ajustes.")
+    );
 };
 
 const setupCurrencyModal = () => {
-  currencyPill.addEventListener("click", openCurrencyModal);
+  currencyPill.addEventListener(
+    "click",
+    withSafeHandler(() => {
+      openCurrencyModal();
+    }, "No se pudo abrir la divisa.")
+  );
   currencyModal.querySelectorAll("button[data-currency]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      updateCurrency(btn.dataset.currency);
-      closeCurrencyModal();
-    });
+    btn.addEventListener(
+      "click",
+      withSafeHandler(() => {
+        updateCurrency(btn.dataset.currency);
+        closeCurrencyModal();
+      }, "No se pudo cambiar la divisa.")
+    );
   });
-  currencyModal.querySelector(".modal-overlay").addEventListener("click", closeCurrencyModal);
+  currencyModal
+    .querySelector(".modal-overlay")
+    .addEventListener(
+      "click",
+      withSafeHandler(() => {
+        closeCurrencyModal();
+      }, "No se pudo cerrar la divisa.")
+    );
 };
 
 const setupDateModal = () => {
-  dateDisplay.addEventListener("click", () => {
-    state.dateSelection = {
-      day: state.date.getDate(),
-      month: state.date.getMonth(),
-      year: state.date.getFullYear(),
-    };
-    state.dateMode = "day";
-    dateModeButtons.forEach((btn) => {
-      btn.classList.toggle("is-active", btn.dataset.mode === state.dateMode);
-    });
-    renderDatePills();
-    openDateModal();
-  });
-
-  dateModal.querySelector(".modal-overlay").addEventListener("click", closeDateModal);
-
-  dateModal.querySelectorAll("[data-quick]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const now = new Date();
-      if (btn.dataset.quick === "yesterday") {
-        now.setDate(now.getDate() - 1);
-      }
+  dateDisplay.addEventListener(
+    "click",
+    withSafeHandler(() => {
       state.dateSelection = {
-        day: now.getDate(),
-        month: now.getMonth(),
-        year: now.getFullYear(),
+        day: state.date.getDate(),
+        month: state.date.getMonth(),
+        year: state.date.getFullYear(),
       };
-      renderDatePills();
-    });
-  });
-
-  datePills.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!target.classList.contains("pill")) {
-      return;
-    }
-    const { type, value } = target.dataset;
-    updateDateSelection(type, value);
-    renderDatePills();
-  });
-
-  dateModeButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      state.dateMode = button.dataset.mode;
+      state.dateMode = "day";
       dateModeButtons.forEach((btn) => {
-        btn.classList.toggle("is-active", btn === button);
+        btn.classList.toggle("is-active", btn.dataset.mode === state.dateMode);
       });
       renderDatePills();
-    });
+      openDateModal();
+    }, "No se pudo abrir el selector de fecha.")
+  );
+
+  dateModal
+    .querySelector(".modal-overlay")
+    .addEventListener(
+      "click",
+      withSafeHandler(() => {
+        closeDateModal();
+      }, "No se pudo cerrar el selector de fecha.")
+    );
+
+  dateModal.querySelectorAll("[data-quick]").forEach((btn) => {
+    btn.addEventListener(
+      "click",
+      withSafeHandler(() => {
+        const now = new Date();
+        if (btn.dataset.quick === "yesterday") {
+          now.setDate(now.getDate() - 1);
+        }
+        state.dateSelection = {
+          day: now.getDate(),
+          month: now.getMonth(),
+          year: now.getFullYear(),
+        };
+        renderDatePills();
+      }, "No se pudo ajustar la fecha rápida.")
+    );
   });
 
-  confirmDateBtn.addEventListener("click", () => {
-    state.date = buildDateFromSelection();
-    updateDateDisplay();
-    closeDateModal();
+  datePills.addEventListener(
+    "click",
+    withSafeHandler((event) => {
+      const target = event.target;
+      if (!target.classList.contains("pill")) {
+        return;
+      }
+      const { type, value } = target.dataset;
+      updateDateSelection(type, value);
+      renderDatePills();
+    }, "No se pudo seleccionar la fecha.")
+  );
+
+  dateModeButtons.forEach((button) => {
+    button.addEventListener(
+      "click",
+      withSafeHandler(() => {
+        state.dateMode = button.dataset.mode;
+        dateModeButtons.forEach((btn) => {
+          btn.classList.toggle("is-active", btn === button);
+        });
+        renderDatePills();
+      }, "No se pudo cambiar el modo de fecha.")
+    );
   });
+
+  confirmDateBtn.addEventListener(
+    "click",
+    withSafeHandler(() => {
+      state.date = buildDateFromSelection();
+      updateDateDisplay();
+      closeDateModal();
+    }, "No se pudo confirmar la fecha.")
+  );
 };
 
 const setupFilters = () => {
@@ -1726,16 +1833,28 @@ const setupAuth = () => {
   });
 
   const handleLogout = async () => {
+    if (isLoggingOut) {
+      return;
+    }
+    isLoggingOut = true;
     try {
       closeSettingsModal();
+      const session = await getSession();
+      if (!session) {
+        closeAllModals();
+        showLogin();
+        return;
+      }
       await signOut();
     } catch (error) {
-      window.alert("No se pudo cerrar sesión.");
+      handleUIError(error, "No se pudo cerrar sesión.");
+    } finally {
+      isLoggingOut = false;
     }
   };
 
-  logoutBtn.addEventListener("click", handleLogout);
-  settingsLogoutBtn.addEventListener("click", handleLogout);
+  logoutBtn.addEventListener("click", withSafeHandler(handleLogout));
+  settingsLogoutBtn.addEventListener("click", withSafeHandler(handleLogout));
 
   supabase.auth.onAuthStateChange(async (event, session) => {
     activeSession = session;
@@ -1749,7 +1868,24 @@ const setupAuth = () => {
   });
 };
 
+const setupGlobalErrorHandlers = () => {
+  window.addEventListener("error", (event) => {
+    console.error(event.error || event.message);
+    showToast("Se produjo un error. Reiniciando…");
+    safeResetUI();
+  });
+  window.addEventListener("unhandledrejection", (event) => {
+    console.error(event.reason);
+    showToast("Se produjo un error. Reiniciando…");
+    safeResetUI();
+  });
+};
+
 const init = async () => {
+  if (hasInitialized) {
+    return;
+  }
+  hasInitialized = true;
   setupTabs();
   setupAmountControl();
   setupCategorySelection();
@@ -1760,6 +1896,7 @@ const init = async () => {
   setupBudgets();
   setupEvolution();
   setupAuth();
+  setupGlobalErrorHandlers();
 
   if (window.Chart) {
     Chart.defaults.font.family =
@@ -1776,7 +1913,7 @@ const init = async () => {
   updateDateDisplay();
 
   buildMonthOptions();
-  saveBtn.addEventListener("click", handleSave);
+  saveBtn.addEventListener("click", withSafeHandler(handleSave));
 
   showLogin();
   setAuthLoading(true, "Cargando sesión…");
