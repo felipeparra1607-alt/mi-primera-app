@@ -500,6 +500,321 @@ const handleUIError = (error, message = "Ocurrió un error. Intenta de nuevo.") 
   showToast(message);
 };
 
+const setActiveTab = (target) => {
+  tabs.forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.tab == target);
+    btn.setAttribute("aria-selected", String(btn.dataset.tab == target));
+  });
+  panels.forEach((panel) => {
+    panel.classList.toggle("is-visible", panel.id === `tab-${target}`);
+  });
+};
+
+const handleDocumentClick = withSafeHandler(async (event) => {
+  const target = event.target;
+
+  const tabBtn = target.closest(".tab-button");
+  if (tabBtn) {
+    setActiveTab(tabBtn.dataset.tab);
+    closeAllModals();
+    return;
+  }
+
+  const saveTrigger = target.closest("#save-expense");
+  if (saveTrigger) {
+    await handleSave();
+    return;
+  }
+
+  const logoutTrigger = target.closest("#logout-btn, #settings-logout");
+  if (logoutTrigger) {
+    await handleLogout();
+    return;
+  }
+
+  const settingsTrigger = target.closest("#settings-btn");
+  if (settingsTrigger) {
+    openSettingsModal();
+    return;
+  }
+
+  const currencyTrigger = target.closest("#currency-pill");
+  if (currencyTrigger) {
+    openCurrencyModal();
+    return;
+  }
+
+  const currencyOption = target.closest("#currency-modal button[data-currency]");
+  if (currencyOption) {
+    updateCurrency(currencyOption.dataset.currency);
+    closeCurrencyModal();
+    return;
+  }
+
+  const currencyOverlay = target.closest("#currency-modal .modal-overlay");
+  if (currencyOverlay) {
+    closeCurrencyModal();
+    return;
+  }
+
+  const dateTrigger = target.closest("#date-display");
+  if (dateTrigger) {
+    state.dateSelection = {
+      day: state.date.getDate(),
+      month: state.date.getMonth(),
+      year: state.date.getFullYear(),
+    };
+    state.dateMode = "day";
+    dateModeButtons.forEach((btn) => {
+      btn.classList.toggle("is-active", btn.dataset.mode === state.dateMode);
+    });
+    renderDatePills();
+    openDateModal();
+    return;
+  }
+
+  const dateOverlay = target.closest("#date-modal .modal-overlay");
+  if (dateOverlay) {
+    closeDateModal();
+    return;
+  }
+
+  const dateQuick = target.closest("#date-modal [data-quick]");
+  if (dateQuick) {
+    const now = new Date();
+    if (dateQuick.dataset.quick === "yesterday") {
+      now.setDate(now.getDate() - 1);
+    }
+    state.dateSelection = {
+      day: now.getDate(),
+      month: now.getMonth(),
+      year: now.getFullYear(),
+    };
+    renderDatePills();
+    return;
+  }
+
+  const datePill = target.closest("#date-pills .pill");
+  if (datePill) {
+    const { type, value } = datePill.dataset;
+    updateDateSelection(type, value);
+    renderDatePills();
+    return;
+  }
+
+  const dateModeBtn = target.closest(".mode-btn");
+  if (dateModeBtn) {
+    state.dateMode = dateModeBtn.dataset.mode;
+    dateModeButtons.forEach((btn) => {
+      btn.classList.toggle("is-active", btn === dateModeBtn);
+    });
+    renderDatePills();
+    return;
+  }
+
+  const dateConfirm = target.closest("#confirm-date");
+  if (dateConfirm) {
+    state.date = buildDateFromSelection();
+    updateDateDisplay();
+    closeDateModal();
+    return;
+  }
+
+  const settingsOverlay = target.closest("#settings-modal .modal-overlay");
+  if (settingsOverlay) {
+    closeSettingsModal();
+    return;
+  }
+
+  const amountButton = target.closest(".amount-btn");
+  if (amountButton) {
+    const action = amountButton.dataset.action;
+    const delta = action === "increment" ? 1 : -1;
+    state.amount = Math.max(0, state.amount + delta);
+    updateAmountDisplay();
+    return;
+  }
+
+  const amountDisplayTrigger = target.closest("#amount-display");
+  if (amountDisplayTrigger) {
+    amountInput.classList.add("is-visible");
+    amountInput.value = state.amount.toString();
+    amountInput.focus();
+    return;
+  }
+
+  const catCircle = target.closest(".cat-circle");
+  if (catCircle) {
+    const card = catCircle.closest(".cat-card");
+    if (card) {
+      setCategory(card.dataset.category, catCircle);
+    }
+    return;
+  }
+
+  const catCard = target.closest(".cat-card");
+  if (catCard && !target.closest(".cat-circle")) {
+    setCategory(catCard.dataset.category);
+    return;
+  }
+
+  const budgetStart = target.closest("#budget-start");
+  if (budgetStart) {
+    const editable = getEditableBudgetForMonth(getSelectedYearMonth());
+    loadBudgetIntoWizard(editable);
+    openWizard();
+    return;
+  }
+
+  const budgetEdit = target.closest("#budget-edit");
+  if (budgetEdit) {
+    const editable = getEditableBudgetForMonth(getSelectedYearMonth());
+    loadBudgetIntoWizard(editable);
+    openWizard();
+    return;
+  }
+
+  const budgetDisable = target.closest("#budget-disable");
+  if (budgetDisable) {
+    const monthKey = getSelectedYearMonth();
+    if (budgetState.mode === "monthly") {
+      delete budgetState.monthly[monthKey];
+    } else {
+      budgetState.template = null;
+    }
+    saveBudgets(budgetState);
+    updateBudgetButtons();
+    renderExpenses();
+    return;
+  }
+
+  const budgetBack = target.closest("#budget-back");
+  if (budgetBack) {
+    closeWizard();
+    return;
+  }
+
+  const budgetNext = target.closest("#budget-next-1");
+  if (budgetNext) {
+    const amount = Number(budgetMonthlyAmount.value || 0);
+    if (amount <= 0) {
+      window.alert("Ingresa un presupuesto mensual válido.");
+      return;
+    }
+    setWizardStep(2);
+    return;
+  }
+
+  const budgetSkip = target.closest("#budget-skip");
+  if (budgetSkip) {
+    document.querySelectorAll("[data-category-budget]").forEach((input) => {
+      input.value = "";
+    });
+    const applied = applyBudgetSettings();
+    if (!applied) {
+      return;
+    }
+    updateBudgetButtons();
+    closeWizard();
+    renderExpenses();
+    return;
+  }
+
+  const budgetActivate = target.closest("#budget-activate");
+  if (budgetActivate) {
+    const applied = applyBudgetSettings();
+    if (!applied) {
+      return;
+    }
+    updateBudgetButtons();
+    closeWizard();
+    renderExpenses();
+    return;
+  }
+
+  const sortButton = target.closest(".vg-sort-btn");
+  if (sortButton) {
+    const category = sortButton.closest(".vg-category")?.dataset.category;
+    if (category) {
+      viewState.sortBy[category] = sortButton.dataset.sort;
+      renderExpenses();
+    }
+    return;
+  }
+
+  const categoryHeader = target.closest(".vg-category-header");
+  if (categoryHeader) {
+    const category = categoryHeader.closest(".vg-category")?.dataset.category;
+    if (category) {
+      if (viewState.openCategories.has(category)) {
+        viewState.openCategories.delete(category);
+      } else {
+        viewState.openCategories.add(category);
+      }
+      renderExpenses();
+    }
+    return;
+  }
+
+  const deleteButton = target.closest(".vg-delete-btn");
+  if (deleteButton) {
+    const expenseId = deleteButton.dataset.expenseId;
+    if (!expenseId) {
+      return;
+    }
+    const confirmed = window.confirm("¿Eliminar este gasto?");
+    if (!confirmed) {
+      return;
+    }
+    const item = deleteButton.closest(".vg-expense-item");
+    if (item) {
+      item.style.maxHeight = `${item.offsetHeight}px`;
+      item.offsetHeight;
+      item.classList.add("is-removing");
+      item.style.maxHeight = "0px";
+    }
+    setTimeout(async () => {
+      try {
+        await deleteExpenseFromSupabase(expenseId);
+        renderExpenses();
+      } catch (error) {
+        if (item) {
+          item.classList.remove("is-removing");
+          item.style.maxHeight = "";
+        }
+        handleUIError(error, "No se pudo eliminar el gasto.");
+      }
+    }, 180);
+    return;
+  }
+
+  const evolutionPrevBtn = target.closest("#evolution-prev");
+  if (evolutionPrevBtn) {
+    evolutionMode = (evolutionMode + 2) % 3;
+    renderCharts(loadExpenses());
+    updateEvolutionDots();
+    return;
+  }
+
+  const evolutionNextBtn = target.closest("#evolution-next");
+  if (evolutionNextBtn) {
+    evolutionMode = (evolutionMode + 1) % 3;
+    renderCharts(loadExpenses());
+    updateEvolutionDots();
+    return;
+  }
+
+  const evolutionDot = target.closest(".vg-dot");
+  if (evolutionDot) {
+    const index = Number(evolutionDot.dataset.index);
+    if (!Number.isNaN(index)) {
+      evolutionMode = index;
+      renderCharts(loadExpenses());
+      updateEvolutionDots();
+    }
+  }
+}, "Error en interacción. Reiniciando…");
+
 const setCategory = (category, button) => {
   state.category = category;
   document.querySelectorAll(".cat-card").forEach((card) => {
@@ -1208,26 +1523,12 @@ const setupEvolution = () => {
   for (let i = 0; i < 3; i += 1) {
     const dot = document.createElement("span");
     dot.className = "vg-dot";
+    dot.dataset.index = String(i);
     if (i === evolutionMode) {
       dot.classList.add("is-active");
     }
-    dot.addEventListener("click", () => {
-      evolutionMode = i;
-      renderCharts(loadExpenses());
-      updateEvolutionDots();
-    });
     evolutionDots.appendChild(dot);
   }
-  evolutionPrev.addEventListener("click", () => {
-    evolutionMode = (evolutionMode + 2) % 3;
-    renderCharts(loadExpenses());
-    updateEvolutionDots();
-  });
-  evolutionNext.addEventListener("click", () => {
-    evolutionMode = (evolutionMode + 1) % 3;
-    renderCharts(loadExpenses());
-    updateEvolutionDots();
-  });
 };
 
 const renderExpenses = () => {
@@ -1278,6 +1579,7 @@ const renderExpenses = () => {
   Object.keys(grouped).forEach((category) => {
     const categoryCard = document.createElement("div");
     categoryCard.className = "vg-category";
+    categoryCard.dataset.category = category;
     const isOpen = viewState.openCategories.has(category);
     if (isOpen) {
       categoryCard.classList.add("is-open");
@@ -1385,26 +1687,7 @@ const renderExpenses = () => {
         deleteBtn.className = "vg-delete-btn";
         deleteBtn.textContent = "🗑️";
         deleteBtn.setAttribute("aria-label", "Eliminar gasto");
-        deleteBtn.addEventListener("click", () => {
-          const confirmed = window.confirm("¿Eliminar este gasto?");
-          if (!confirmed) {
-            return;
-          }
-          item.style.maxHeight = `${item.offsetHeight}px`;
-          item.offsetHeight;
-          item.classList.add("is-removing");
-          item.style.maxHeight = "0px";
-          setTimeout(async () => {
-            try {
-              await deleteExpenseFromSupabase(expense.id);
-              renderExpenses();
-            } catch (error) {
-              item.classList.remove("is-removing");
-              item.style.maxHeight = "";
-              window.alert("No se pudo eliminar el gasto.");
-            }
-          }, 180);
-        });
+        deleteBtn.dataset.expenseId = expense.id;
 
         actions.append(amount, deleteBtn);
         item.append(meta, actions);
@@ -1413,23 +1696,6 @@ const renderExpenses = () => {
     }
 
     categoryCard.appendChild(body);
-    header.addEventListener("click", () => {
-      if (viewState.openCategories.has(category)) {
-        viewState.openCategories.delete(category);
-      } else {
-        viewState.openCategories.add(category);
-      }
-      renderExpenses();
-    });
-
-    categoryCard.addEventListener("click", (event) => {
-      if (!event.target.classList.contains("vg-sort-btn")) {
-        return;
-      }
-      const sortValue = event.target.dataset.sort;
-      viewState.sortBy[category] = sortValue;
-      renderExpenses();
-    });
 
     expensesList.appendChild(categoryCard);
 
@@ -1459,6 +1725,27 @@ const resetForm = () => {
     card.classList.remove("selected");
   });
   state.category = null;
+};
+
+const handleLogout = async () => {
+  if (isLoggingOut) {
+    return;
+  }
+  isLoggingOut = true;
+  try {
+    closeSettingsModal();
+    const session = await getSession();
+    if (!session) {
+      closeAllModals();
+      showLogin();
+      return;
+    }
+    await signOut();
+  } catch (error) {
+    handleUIError(error, "No se pudo cerrar sesión.");
+  } finally {
+    isLoggingOut = false;
+  }
 };
 
 const handleSave = async () => {
@@ -1509,34 +1796,9 @@ const handleSave = async () => {
   }
 };
 
-const setupTabs = () => {
-  tabs.forEach((tab) => {
-    tab.addEventListener(
-      "click",
-      withSafeHandler(() => {
-        const target = tab.dataset.tab;
-        tabs.forEach((btn) => {
-          btn.classList.toggle("is-active", btn === tab);
-          btn.setAttribute("aria-selected", String(btn === tab));
-        });
-        panels.forEach((panel) => {
-          panel.classList.toggle("is-visible", panel.id === `tab-${target}`);
-        });
-      }, "No se pudo cambiar de pestaña.")
-    );
-  });
-};
+const setupTabs = () => {};
 
 const setupAmountControl = () => {
-  document.querySelectorAll(".amount-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const action = btn.dataset.action;
-      const delta = action === "increment" ? 1 : -1;
-      state.amount = Math.max(0, state.amount + delta);
-      updateAmountDisplay();
-    });
-  });
-
   const applyAmountInput = () => {
     const value = Number(amountInput.value.replace(",", "."));
     if (!Number.isNaN(value)) {
@@ -1546,20 +1808,6 @@ const setupAmountControl = () => {
     amountInput.classList.remove("is-visible");
   };
 
-  amountDisplay.addEventListener("click", () => {
-    amountInput.classList.add("is-visible");
-    amountInput.value = state.amount.toString();
-    amountInput.focus();
-  });
-
-  amountDisplay.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      amountInput.classList.add("is-visible");
-      amountInput.value = state.amount.toString();
-      amountInput.focus();
-    }
-  });
-
   amountInput.addEventListener("blur", applyAmountInput);
   amountInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
@@ -1568,146 +1816,13 @@ const setupAmountControl = () => {
   });
 };
 
-const setupCategorySelection = () => {
-  document.querySelectorAll(".cat-circle").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      const card = event.currentTarget.closest(".cat-card");
-      setCategory(card.dataset.category, button);
-    });
-  });
-  document.querySelectorAll(".cat-card").forEach((card) => {
-    card.addEventListener("click", (event) => {
-      if (event.target.classList.contains("cat-circle")) {
-        return;
-      }
-      setCategory(card.dataset.category);
-    });
-  });
-};
+const setupCategorySelection = () => {};
 
-const setupSettingsMenu = () => {
-  settingsBtn.addEventListener(
-    "click",
-    withSafeHandler(() => {
-      openSettingsModal();
-    }, "No se pudo abrir Ajustes.")
-  );
-  settingsModal
-    .querySelector(".modal-overlay")
-    .addEventListener(
-      "click",
-      withSafeHandler(() => {
-        closeSettingsModal();
-      }, "No se pudo cerrar Ajustes.")
-    );
-};
+const setupSettingsMenu = () => {};
 
-const setupCurrencyModal = () => {
-  currencyPill.addEventListener(
-    "click",
-    withSafeHandler(() => {
-      openCurrencyModal();
-    }, "No se pudo abrir la divisa.")
-  );
-  currencyModal.querySelectorAll("button[data-currency]").forEach((btn) => {
-    btn.addEventListener(
-      "click",
-      withSafeHandler(() => {
-        updateCurrency(btn.dataset.currency);
-        closeCurrencyModal();
-      }, "No se pudo cambiar la divisa.")
-    );
-  });
-  currencyModal
-    .querySelector(".modal-overlay")
-    .addEventListener(
-      "click",
-      withSafeHandler(() => {
-        closeCurrencyModal();
-      }, "No se pudo cerrar la divisa.")
-    );
-};
+const setupCurrencyModal = () => {};
 
-const setupDateModal = () => {
-  dateDisplay.addEventListener(
-    "click",
-    withSafeHandler(() => {
-      state.dateSelection = {
-        day: state.date.getDate(),
-        month: state.date.getMonth(),
-        year: state.date.getFullYear(),
-      };
-      state.dateMode = "day";
-      dateModeButtons.forEach((btn) => {
-        btn.classList.toggle("is-active", btn.dataset.mode === state.dateMode);
-      });
-      renderDatePills();
-      openDateModal();
-    }, "No se pudo abrir el selector de fecha.")
-  );
-
-  dateModal
-    .querySelector(".modal-overlay")
-    .addEventListener(
-      "click",
-      withSafeHandler(() => {
-        closeDateModal();
-      }, "No se pudo cerrar el selector de fecha.")
-    );
-
-  dateModal.querySelectorAll("[data-quick]").forEach((btn) => {
-    btn.addEventListener(
-      "click",
-      withSafeHandler(() => {
-        const now = new Date();
-        if (btn.dataset.quick === "yesterday") {
-          now.setDate(now.getDate() - 1);
-        }
-        state.dateSelection = {
-          day: now.getDate(),
-          month: now.getMonth(),
-          year: now.getFullYear(),
-        };
-        renderDatePills();
-      }, "No se pudo ajustar la fecha rápida.")
-    );
-  });
-
-  datePills.addEventListener(
-    "click",
-    withSafeHandler((event) => {
-      const target = event.target;
-      if (!target.classList.contains("pill")) {
-        return;
-      }
-      const { type, value } = target.dataset;
-      updateDateSelection(type, value);
-      renderDatePills();
-    }, "No se pudo seleccionar la fecha.")
-  );
-
-  dateModeButtons.forEach((button) => {
-    button.addEventListener(
-      "click",
-      withSafeHandler(() => {
-        state.dateMode = button.dataset.mode;
-        dateModeButtons.forEach((btn) => {
-          btn.classList.toggle("is-active", btn === button);
-        });
-        renderDatePills();
-      }, "No se pudo cambiar el modo de fecha.")
-    );
-  });
-
-  confirmDateBtn.addEventListener(
-    "click",
-    withSafeHandler(() => {
-      state.date = buildDateFromSelection();
-      updateDateDisplay();
-      closeDateModal();
-    }, "No se pudo confirmar la fecha.")
-  );
-};
+const setupDateModal = () => {};
 
 const setupFilters = () => {
   yearSelect.addEventListener("change", renderExpenses);
@@ -1832,30 +1947,6 @@ const setupAuth = () => {
     showAuthMode(!isAuthModeSignUp);
   });
 
-  const handleLogout = async () => {
-    if (isLoggingOut) {
-      return;
-    }
-    isLoggingOut = true;
-    try {
-      closeSettingsModal();
-      const session = await getSession();
-      if (!session) {
-        closeAllModals();
-        showLogin();
-        return;
-      }
-      await signOut();
-    } catch (error) {
-      handleUIError(error, "No se pudo cerrar sesión.");
-    } finally {
-      isLoggingOut = false;
-    }
-  };
-
-  logoutBtn.addEventListener("click", withSafeHandler(handleLogout));
-  settingsLogoutBtn.addEventListener("click", withSafeHandler(handleLogout));
-
   supabase.auth.onAuthStateChange(async (event, session) => {
     activeSession = session;
     if (!session) {
@@ -1870,33 +1961,35 @@ const setupAuth = () => {
 
 const setupGlobalErrorHandlers = () => {
   window.addEventListener("error", (event) => {
-    console.error(event.error || event.message);
+    window.__lastFluxoError = event.error || event.message;
+    console.error(window.__lastFluxoError);
     showToast("Se produjo un error. Reiniciando…");
     safeResetUI();
   });
   window.addEventListener("unhandledrejection", (event) => {
-    console.error(event.reason);
+    window.__lastFluxoError = event.reason;
+    console.error(window.__lastFluxoError);
     showToast("Se produjo un error. Reiniciando…");
     safeResetUI();
   });
 };
 
 const init = async () => {
-  if (hasInitialized) {
-    return;
+  if (!hasInitialized) {
+    hasInitialized = true;
+    document.addEventListener("click", handleDocumentClick);
+    setupTabs();
+    setupAmountControl();
+    setupCategorySelection();
+    setupSettingsMenu();
+    setupCurrencyModal();
+    setupDateModal();
+    setupFilters();
+    setupBudgets();
+    setupEvolution();
+    setupAuth();
+    setupGlobalErrorHandlers();
   }
-  hasInitialized = true;
-  setupTabs();
-  setupAmountControl();
-  setupCategorySelection();
-  setupSettingsMenu();
-  setupCurrencyModal();
-  setupDateModal();
-  setupFilters();
-  setupBudgets();
-  setupEvolution();
-  setupAuth();
-  setupGlobalErrorHandlers();
 
   if (window.Chart) {
     Chart.defaults.font.family =
@@ -1913,7 +2006,6 @@ const init = async () => {
   updateDateDisplay();
 
   buildMonthOptions();
-  saveBtn.addEventListener("click", withSafeHandler(handleSave));
 
   showLogin();
   setAuthLoading(true, "Cargando sesión…");
@@ -1934,4 +2026,11 @@ const init = async () => {
   }
 };
 
-init();
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", () => {
+    init();
+  });
+} else {
+  init();
+}
+
