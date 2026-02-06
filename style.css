@@ -1460,6 +1460,38 @@ select:focus,
     letter-spacing: 0.9px;
   }
 
+  .categories {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+  }
+
+  .cat-card {
+    border: none;
+    box-shadow: none;
+    border-radius: 14px;
+    padding: 10px 8px 8px;
+    min-height: 0;
+    background: transparent;
+  }
+
+  .cat-card.selected {
+    border: none;
+    box-shadow: 0 0 0 1px rgba(31, 107, 255, 0.24);
+    background: #f8faff;
+  }
+
+  .cat-circle {
+    width: 68px;
+    height: 68px;
+    font-size: 38px;
+  }
+
+  .cat-name {
+    margin-top: 8px;
+    font-size: 12px;
+    letter-spacing: 0.9px;
+  }
+
   .vg-delete-btn {
     opacity: 1;
   }
