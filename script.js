@@ -230,6 +230,10 @@ const clearSupabaseAuthStorage = () => {
   }
 };
 
+const setBootState = (state) => {
+  window.__fluxoBootState = state;
+};
+
 const hardSignOut = async () => {
   try {
     await supabase.auth.signOut();
@@ -2021,9 +2025,59 @@ const bindAuthFormOnce = () => {
 };
 
 const initAuthAndRender = async () => {
-  activeSession = null;
+  setBootState("boot_start");
   showLogin();
-  setAuthLoading(false);
+  setAuthLoading(true, "Cargando sesión…");
+
+  let timeoutId;
+  const timeoutPromise = new Promise((resolve) => {
+    timeoutId = setTimeout(() => {
+      setBootState("timeout_fallback");
+      closeAllModals();
+      showLogin();
+      setAuthLoading(false);
+      resolve(null);
+    }, 1800);
+  });
+
+  try {
+    const sessionResult = await Promise.race([
+      supabase.auth.getSession(),
+      timeoutPromise,
+    ]);
+
+    if (!sessionResult || !sessionResult.data) {
+      return;
+    }
+
+    const { data, error } = sessionResult;
+    if (error) {
+      setBootState("auth_error");
+      console.error(error);
+      closeAllModals();
+      showLogin();
+      return;
+    }
+
+    const session = data.session;
+    activeSession = session;
+    if (session) {
+      setBootState("session_ok");
+      showApp();
+      await refreshAppData();
+    } else {
+      setBootState("no_session");
+      showLogin();
+    }
+  } catch (error) {
+    setBootState("auth_error");
+    console.error(error);
+    closeAllModals();
+    showLogin();
+  } finally {
+    clearTimeout(timeoutId);
+    setAuthLoading(false);
+  }
 };
 
 const registerAuthListenerOnce = () => {
@@ -2032,20 +2086,35 @@ const registerAuthListenerOnce = () => {
   }
   authBound = true;
   supabase.auth.onAuthStateChange(async (event, session) => {
-    activeSession = session;
-    if (!session) {
-      expensesCache = [];
+    try {
+      activeSession = session;
+      if (!session) {
+        setBootState("no_session");
+        expensesCache = [];
+        showLogin();
+        return;
+      }
+      if (event === "SIGNED_OUT") {
+        setBootState("no_session");
+        expensesCache = [];
+        showLogin();
+        return;
+      }
+      if (event === "INITIAL_SESSION") {
+        return;
+      }
+      setBootState("session_ok");
+      showApp();
+      if (event === "SIGNED_IN") {
+        await refreshAppData();
+      }
+    } catch (error) {
+      setBootState("auth_error");
+      console.error(error);
+      closeAllModals();
       showLogin();
-      return;
-    }
-    if (event === "SIGNED_OUT") {
-      expensesCache = [];
-      showLogin();
-      return;
-    }
-    showApp();
-    if (event === "SIGNED_IN") {
-      await refreshAppData();
+    } finally {
+      setAuthLoading(false);
     }
   });
 };
@@ -2053,7 +2122,7 @@ const registerAuthListenerOnce = () => {
 const boot = async () => {
   showLogin();
   closeAllModals();
-  await hardSignOut();
+  hardSignOut();
   bindUIOnce();
   bindAuthFormOnce();
   showAuthMode(false);
