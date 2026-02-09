@@ -7,9 +7,11 @@ const CURRENCY_KEY = "fluxo_currency";
 let expensesCache = [];
 let activeSession = null;
 let isAuthModeSignUp = false;
-let hasInitialized = false;
 let isSavingExpense = false;
 let isLoggingOut = false;
+let uiBound = false;
+let authBound = false;
+let authFormBound = false;
 
 const state = {
   amount: 0,
@@ -193,9 +195,7 @@ const closeAllModals = () => {
 
 const safeResetUI = async () => {
   closeAllModals();
-  isSavingExpense = false;
-  isLoggingOut = false;
-  saveBtn.disabled = false;
+  resetActionFlags();
   try {
     const session = await getSession();
     if (session) {
@@ -218,6 +218,12 @@ const withSafeHandler = (handler, message) => async (event) => {
   }
 };
 
+const resetActionFlags = () => {
+  isSavingExpense = false;
+  isLoggingOut = false;
+  saveBtn.disabled = false;
+};
+
 const setAuthMessage = (message = "") => {
   authMessage.textContent = message;
 };
@@ -234,6 +240,8 @@ const setAuthLoading = (loading, message = "") => {
 };
 
 const showLogin = () => {
+  closeAllModals();
+  resetActionFlags();
   authScreen.classList.remove("is-hidden");
   authScreen.setAttribute("aria-hidden", "false");
   appShell.classList.add("is-hidden");
@@ -241,11 +249,17 @@ const showLogin = () => {
   setAuthLoading(false);
 };
 
-const hideLogin = () => {
+const showApp = () => {
+  closeAllModals();
+  resetActionFlags();
   authScreen.classList.add("is-hidden");
   authScreen.setAttribute("aria-hidden", "true");
   appShell.classList.remove("is-hidden");
   appShell.setAttribute("aria-hidden", "false");
+};
+
+const hideLogin = () => {
+  showApp();
 };
 
 const showAuthMode = (signUpMode) => {
@@ -1916,9 +1930,46 @@ const refreshAppData = async () => {
   }
 };
 
-const setupAuth = () => {
-  showAuthMode(false);
+const setupAuth = () => {};
 
+const setupGlobalErrorHandlers = () => {
+  window.addEventListener("error", (event) => {
+    window.__lastFluxoError = event.error || event.message;
+    console.error(window.__lastFluxoError);
+    showToast("Se produjo un error. Reiniciando…");
+    safeResetUI();
+  });
+  window.addEventListener("unhandledrejection", (event) => {
+    window.__lastFluxoError = event.reason;
+    console.error(window.__lastFluxoError);
+    showToast("Se produjo un error. Reiniciando…");
+    safeResetUI();
+  });
+};
+
+const bindUIOnce = () => {
+  if (uiBound) {
+    return;
+  }
+  uiBound = true;
+  document.addEventListener("click", handleDocumentClick);
+  setupTabs();
+  setupAmountControl();
+  setupCategorySelection();
+  setupSettingsMenu();
+  setupCurrencyModal();
+  setupDateModal();
+  setupFilters();
+  setupBudgets();
+  setupEvolution();
+  setupGlobalErrorHandlers();
+};
+
+const bindAuthFormOnce = () => {
+  if (authFormBound) {
+    return;
+  }
+  authFormBound = true;
   authCard.addEventListener("submit", async (event) => {
     event.preventDefault();
     const email = authEmail.value.trim();
@@ -1946,7 +1997,38 @@ const setupAuth = () => {
   authToggle.addEventListener("click", () => {
     showAuthMode(!isAuthModeSignUp);
   });
+};
 
+const initAuthAndRender = async () => {
+  showLogin();
+  setAuthLoading(true, "Cargando sesión…");
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      throw error;
+    }
+    const session = data.session;
+    activeSession = session;
+    if (session) {
+      showApp();
+      await refreshAppData();
+    } else {
+      showLogin();
+      setAuthLoading(false);
+    }
+  } catch (error) {
+    console.error(error);
+    showLogin();
+    setAuthLoading(false);
+    setAuthMessage("No se pudo iniciar sesión automáticamente.");
+  }
+};
+
+const registerAuthListenerOnce = () => {
+  if (authBound) {
+    return;
+  }
+  authBound = true;
   supabase.auth.onAuthStateChange(async (event, session) => {
     activeSession = session;
     if (!session) {
@@ -1954,83 +2036,25 @@ const setupAuth = () => {
       showLogin();
       return;
     }
-    hideLogin();
-    await refreshAppData();
-  });
-};
-
-const setupGlobalErrorHandlers = () => {
-  window.addEventListener("error", (event) => {
-    window.__lastFluxoError = event.error || event.message;
-    console.error(window.__lastFluxoError);
-    showToast("Se produjo un error. Reiniciando…");
-    safeResetUI();
-  });
-  window.addEventListener("unhandledrejection", (event) => {
-    window.__lastFluxoError = event.reason;
-    console.error(window.__lastFluxoError);
-    showToast("Se produjo un error. Reiniciando…");
-    safeResetUI();
-  });
-};
-
-const init = async () => {
-  if (!hasInitialized) {
-    hasInitialized = true;
-    document.addEventListener("click", handleDocumentClick);
-    setupTabs();
-    setupAmountControl();
-    setupCategorySelection();
-    setupSettingsMenu();
-    setupCurrencyModal();
-    setupDateModal();
-    setupFilters();
-    setupBudgets();
-    setupEvolution();
-    setupAuth();
-    setupGlobalErrorHandlers();
-  }
-
-  if (window.Chart) {
-    Chart.defaults.font.family =
-      '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial';
-    Chart.defaults.color = "#0b1220";
-  }
-
-  const storedCurrency = localStorage.getItem(CURRENCY_KEY);
-  if (storedCurrency && currencySymbols[storedCurrency]) {
-    state.currency = storedCurrency;
-  }
-  updateCurrency(state.currency);
-  updateAmountDisplay();
-  updateDateDisplay();
-
-  buildMonthOptions();
-
-  showLogin();
-  setAuthLoading(true, "Cargando sesión…");
-  try {
-    const session = await getSession();
-    activeSession = session;
-    if (session) {
-      hideLogin();
+    showApp();
+    if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
       await refreshAppData();
-    } else {
-      showLogin();
-      setAuthLoading(false);
     }
-  } catch (error) {
-    showLogin();
-    setAuthLoading(false);
-    setAuthMessage("No se pudo iniciar sesión automáticamente.");
-  }
+  });
+};
+
+const boot = async () => {
+  bindUIOnce();
+  bindAuthFormOnce();
+  showAuthMode(false);
+  await initAuthAndRender();
+  registerAuthListenerOnce();
 };
 
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", () => {
-    init();
+    boot();
   });
 } else {
-  init();
+  boot();
 }
-
