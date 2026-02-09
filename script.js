@@ -2000,28 +2000,9 @@ const bindAuthFormOnce = () => {
 };
 
 const initAuthAndRender = async () => {
+  activeSession = null;
   showLogin();
-  setAuthLoading(true, "Cargando sesión…");
-  try {
-    const { data, error } = await supabase.auth.getSession();
-    if (error) {
-      throw error;
-    }
-    const session = data.session;
-    activeSession = session;
-    if (session) {
-      showApp();
-      await refreshAppData();
-    } else {
-      showLogin();
-      setAuthLoading(false);
-    }
-  } catch (error) {
-    console.error(error);
-    showLogin();
-    setAuthLoading(false);
-    setAuthMessage("No se pudo iniciar sesión automáticamente.");
-  }
+  setAuthLoading(false);
 };
 
 const registerAuthListenerOnce = () => {
@@ -2032,6 +2013,11 @@ const registerAuthListenerOnce = () => {
   supabase.auth.onAuthStateChange(async (event, session) => {
     activeSession = session;
     if (!session) {
+      expensesCache = [];
+      showLogin();
+      return;
+    }
+    if (event === "SIGNED_OUT") {
       expensesCache = [];
       showLogin();
       return;
