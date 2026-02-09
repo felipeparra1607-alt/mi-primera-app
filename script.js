@@ -218,6 +218,27 @@ const withSafeHandler = (handler, message) => async (event) => {
   }
 };
 
+const clearSupabaseAuthStorage = () => {
+  try {
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith("sb-") && key.includes("auth-token")) {
+        localStorage.removeItem(key);
+      }
+    });
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+const hardSignOut = async () => {
+  try {
+    await supabase.auth.signOut();
+  } catch (error) {
+    console.error(error);
+  }
+  clearSupabaseAuthStorage();
+};
+
 const resetActionFlags = () => {
   isSavingExpense = false;
   isLoggingOut = false;
@@ -2023,13 +2044,16 @@ const registerAuthListenerOnce = () => {
       return;
     }
     showApp();
-    if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
+    if (event === "SIGNED_IN") {
       await refreshAppData();
     }
   });
 };
 
 const boot = async () => {
+  showLogin();
+  closeAllModals();
+  await hardSignOut();
   bindUIOnce();
   bindAuthFormOnce();
   showAuthMode(false);
