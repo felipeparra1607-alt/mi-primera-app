@@ -9,9 +9,14 @@ let activeSession = null;
 let isAuthModeSignUp = false;
 let isSavingExpense = false;
 let isLoggingOut = false;
+let isAuthLoading = false;
 let uiBound = false;
 let authBound = false;
 let authFormBound = false;
+let focusListenersBound = false;
+let isResumingApp = false;
+let pendingResumeReason = "";
+let inFocus = true;
 
 const state = {
   amount: 0,
@@ -234,6 +239,10 @@ const setBootState = (state) => {
   window.__fluxoBootState = state;
 };
 
+const setInFocus = (value) => {
+  inFocus = value;
+};
+
 const hardSignOut = async () => {
   try {
     await supabase.auth.signOut();
@@ -254,6 +263,7 @@ const setAuthMessage = (message = "") => {
 };
 
 const setAuthLoading = (loading, message = "") => {
+  isAuthLoading = loading;
   authLoader.classList.toggle("is-hidden", !loading);
   authCard.classList.toggle("is-hidden", loading);
   if (loading && message) {
@@ -265,6 +275,7 @@ const setAuthLoading = (loading, message = "") => {
 };
 
 const showLogin = () => {
+  setInFocus(true);
   closeAllModals();
   resetActionFlags();
   authScreen.classList.remove("is-hidden");
@@ -275,6 +286,7 @@ const showLogin = () => {
 };
 
 const showApp = () => {
+  setInFocus(true);
   closeAllModals();
   resetActionFlags();
   authScreen.classList.add("is-hidden");
@@ -2024,6 +2036,81 @@ const bindAuthFormOnce = () => {
   });
 };
 
+const resumeApp = async (reason = "resume") => {
+  if (isResumingApp) {
+    pendingResumeReason = reason;
+    return;
+  }
+  isResumingApp = true;
+  try {
+    setInFocus(true);
+    closeAllModals();
+    resetActionFlags();
+    authSubmit.disabled = false;
+    if (isAuthLoading) {
+      setAuthLoading(false);
+    }
+
+    const sessionResult = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise((resolve) => setTimeout(() => resolve({ data: { session: null } }), 2000)),
+    ]);
+    const session = sessionResult?.data?.session || null;
+
+    activeSession = session;
+    if (!session) {
+      expensesCache = [];
+      showLogin();
+      return;
+    }
+
+    if (appShell.classList.contains("is-hidden")) {
+      showApp();
+    }
+  } catch (error) {
+    console.error(`[resumeApp:${reason}]`, error);
+    showLogin();
+  } finally {
+    isResumingApp = false;
+    if (pendingResumeReason) {
+      const nextReason = pendingResumeReason;
+      pendingResumeReason = "";
+      resumeApp(nextReason);
+    }
+  }
+};
+
+const bindFocusListenersOnce = () => {
+  if (focusListenersBound) {
+    return;
+  }
+  focusListenersBound = true;
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      setInFocus(false);
+      return;
+    }
+    resumeApp("visibilitychange");
+  });
+
+  window.addEventListener("blur", () => {
+    setInFocus(false);
+  });
+
+  window.addEventListener("pagehide", () => {
+    setInFocus(false);
+  });
+
+  window.addEventListener("focus", () => {
+    resumeApp("focus");
+  });
+
+  window.addEventListener("pageshow", (event) => {
+    resumeApp(event.persisted ? "pageshow_bfcache" : "pageshow");
+  });
+};
+
 const initAuthAndRender = async () => {
   setBootState("boot_start");
   showLogin();
@@ -2125,6 +2212,7 @@ const boot = async () => {
   hardSignOut();
   bindUIOnce();
   bindAuthFormOnce();
+  bindFocusListenersOnce();
   showAuthMode(false);
   await initAuthAndRender();
   registerAuthListenerOnce();
