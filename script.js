@@ -15,6 +15,7 @@ let authBound = false;
 let authFormBound = false;
 let focusListenersBound = false;
 let isResumingApp = false;
+let pendingResumeReason = "";
 let inFocus = true;
 
 const state = {
@@ -238,6 +239,10 @@ const setBootState = (state) => {
   window.__fluxoBootState = state;
 };
 
+const setInFocus = (value) => {
+  inFocus = value;
+};
+
 const hardSignOut = async () => {
   try {
     await supabase.auth.signOut();
@@ -270,7 +275,7 @@ const setAuthLoading = (loading, message = "") => {
 };
 
 const showLogin = () => {
-  inFocus = true;
+  setInFocus(true);
   closeAllModals();
   resetActionFlags();
   authScreen.classList.remove("is-hidden");
@@ -281,7 +286,7 @@ const showLogin = () => {
 };
 
 const showApp = () => {
-  inFocus = true;
+  setInFocus(true);
   closeAllModals();
   resetActionFlags();
   authScreen.classList.add("is-hidden");
@@ -2033,11 +2038,12 @@ const bindAuthFormOnce = () => {
 
 const resumeApp = async (reason = "resume") => {
   if (isResumingApp) {
+    pendingResumeReason = reason;
     return;
   }
   isResumingApp = true;
   try {
-    inFocus = true;
+    setInFocus(true);
     closeAllModals();
     resetActionFlags();
     authSubmit.disabled = false;
@@ -2045,9 +2051,11 @@ const resumeApp = async (reason = "resume") => {
       setAuthLoading(false);
     }
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const sessionResult = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise((resolve) => setTimeout(() => resolve({ data: { session: null } }), 2000)),
+    ]);
+    const session = sessionResult?.data?.session || null;
 
     activeSession = session;
     if (!session) {
@@ -2064,6 +2072,11 @@ const resumeApp = async (reason = "resume") => {
     showLogin();
   } finally {
     isResumingApp = false;
+    if (pendingResumeReason) {
+      const nextReason = pendingResumeReason;
+      pendingResumeReason = "";
+      resumeApp(nextReason);
+    }
   }
 };
 
@@ -2075,10 +2088,18 @@ const bindFocusListenersOnce = () => {
 
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
-      inFocus = false;
+      setInFocus(false);
       return;
     }
     resumeApp("visibilitychange");
+  });
+
+  window.addEventListener("blur", () => {
+    setInFocus(false);
+  });
+
+  window.addEventListener("pagehide", () => {
+    setInFocus(false);
   });
 
   window.addEventListener("focus", () => {
