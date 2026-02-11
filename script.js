@@ -9,9 +9,13 @@ let activeSession = null;
 let isAuthModeSignUp = false;
 let isSavingExpense = false;
 let isLoggingOut = false;
+let isAuthLoading = false;
 let uiBound = false;
 let authBound = false;
 let authFormBound = false;
+let focusListenersBound = false;
+let isResumingApp = false;
+let inFocus = true;
 
 const state = {
   amount: 0,
@@ -254,6 +258,7 @@ const setAuthMessage = (message = "") => {
 };
 
 const setAuthLoading = (loading, message = "") => {
+  isAuthLoading = loading;
   authLoader.classList.toggle("is-hidden", !loading);
   authCard.classList.toggle("is-hidden", loading);
   if (loading && message) {
@@ -265,6 +270,7 @@ const setAuthLoading = (loading, message = "") => {
 };
 
 const showLogin = () => {
+  inFocus = true;
   closeAllModals();
   resetActionFlags();
   authScreen.classList.remove("is-hidden");
@@ -275,6 +281,7 @@ const showLogin = () => {
 };
 
 const showApp = () => {
+  inFocus = true;
   closeAllModals();
   resetActionFlags();
   authScreen.classList.add("is-hidden");
@@ -2024,6 +2031,65 @@ const bindAuthFormOnce = () => {
   });
 };
 
+const resumeApp = async (reason = "resume") => {
+  if (isResumingApp) {
+    return;
+  }
+  isResumingApp = true;
+  try {
+    inFocus = true;
+    closeAllModals();
+    resetActionFlags();
+    authSubmit.disabled = false;
+    if (isAuthLoading) {
+      setAuthLoading(false);
+    }
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    activeSession = session;
+    if (!session) {
+      expensesCache = [];
+      showLogin();
+      return;
+    }
+
+    if (appShell.classList.contains("is-hidden")) {
+      showApp();
+    }
+  } catch (error) {
+    console.error(`[resumeApp:${reason}]`, error);
+    showLogin();
+  } finally {
+    isResumingApp = false;
+  }
+};
+
+const bindFocusListenersOnce = () => {
+  if (focusListenersBound) {
+    return;
+  }
+  focusListenersBound = true;
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      inFocus = false;
+      return;
+    }
+    resumeApp("visibilitychange");
+  });
+
+  window.addEventListener("focus", () => {
+    resumeApp("focus");
+  });
+
+  window.addEventListener("pageshow", (event) => {
+    resumeApp(event.persisted ? "pageshow_bfcache" : "pageshow");
+  });
+};
+
 const initAuthAndRender = async () => {
   setBootState("boot_start");
   showLogin();
@@ -2125,6 +2191,7 @@ const boot = async () => {
   hardSignOut();
   bindUIOnce();
   bindAuthFormOnce();
+  bindFocusListenersOnce();
   showAuthMode(false);
   await initAuthAndRender();
   registerAuthListenerOnce();
