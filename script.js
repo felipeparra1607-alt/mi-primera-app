@@ -2293,6 +2293,7 @@ const registerAuthListenerOnce = () => {
 };
 
 const boot = async () => {
+  resetDateToToday();
   showLogin();
   closeAllModals();
   hardSignOut();
