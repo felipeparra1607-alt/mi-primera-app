@@ -24,6 +24,7 @@ const state = {
   currency: "EUR",
   category: null,
   date: new Date(),
+  quickDate: "today",
   dateSelection: {
     day: new Date().getDate(),
     month: new Date().getMonth(),
@@ -380,20 +381,15 @@ const updateDateDisplay = () => {
 const isSameLocalDate = (a, b) => toLocalDateKey(a) === toLocalDateKey(b);
 
 const updateQuickDatePills = () => {
-  const today = new Date();
-  const yesterday = new Date();
-  yesterday.setDate(today.getDate() - 1);
   document.querySelectorAll("#date-modal [data-quick]").forEach((btn) => {
-    const quick = btn.dataset.quick;
-    const isToday = quick === "today" && isSameLocalDate(state.date, today);
-    const isYesterday = quick === "yesterday" && isSameLocalDate(state.date, yesterday);
-    btn.classList.toggle("is-active", isToday || isYesterday);
+    btn.classList.toggle("is-active", btn.dataset.quick === state.quickDate);
   });
 };
 
 const resetDateToToday = () => {
   const now = new Date();
   state.date = now;
+  state.quickDate = "today";
   state.dateSelection = {
     day: now.getDate(),
     month: now.getMonth(),
@@ -698,7 +694,9 @@ const handleDocumentClick = withSafeHandler(async (event) => {
   const dateQuick = target.closest("#date-modal [data-quick]");
   if (dateQuick) {
     const now = new Date();
-    if (dateQuick.dataset.quick === "yesterday") {
+    const quick = dateQuick.dataset.quick;
+    state.quickDate = quick;
+    if (quick === "yesterday") {
       now.setDate(now.getDate() - 1);
     }
     state.dateSelection = {
@@ -718,6 +716,16 @@ const handleDocumentClick = withSafeHandler(async (event) => {
     const { type, value } = datePill.dataset;
     updateDateSelection(type, value);
     state.date = buildDateFromSelection();
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    if (isSameLocalDate(state.date, today)) {
+      state.quickDate = "today";
+    } else if (isSameLocalDate(state.date, yesterday)) {
+      state.quickDate = "yesterday";
+    } else {
+      state.quickDate = null;
+    }
     updateDateDisplay();
     updateQuickDatePills();
     renderDatePills();
@@ -2111,81 +2119,6 @@ const bindAuthFormOnce = () => {
 
   authEmail.addEventListener("input", () => {
     saveLoginEmailToSession(authEmail.value);
-  });
-};
-
-const resumeApp = async (reason = "resume") => {
-  if (isResumingApp) {
-    pendingResumeReason = reason;
-    return;
-  }
-  isResumingApp = true;
-  try {
-    setInFocus(true);
-    closeAllModals();
-    resetActionFlags();
-    authSubmit.disabled = false;
-    if (isAuthLoading) {
-      setAuthLoading(false);
-    }
-
-    const sessionResult = await Promise.race([
-      supabase.auth.getSession(),
-      new Promise((resolve) => setTimeout(() => resolve({ data: { session: null } }), 2000)),
-    ]);
-    const session = sessionResult?.data?.session || null;
-
-    activeSession = session;
-    if (!session) {
-      expensesCache = [];
-      showLogin();
-      return;
-    }
-
-    if (appShell.classList.contains("is-hidden")) {
-      showApp();
-    }
-  } catch (error) {
-    console.error(`[resumeApp:${reason}]`, error);
-    showLogin();
-  } finally {
-    isResumingApp = false;
-    if (pendingResumeReason) {
-      const nextReason = pendingResumeReason;
-      pendingResumeReason = "";
-      resumeApp(nextReason);
-    }
-  }
-};
-
-const bindFocusListenersOnce = () => {
-  if (focusListenersBound) {
-    return;
-  }
-  focusListenersBound = true;
-
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden) {
-      setInFocus(false);
-      return;
-    }
-    resumeApp("visibilitychange");
-  });
-
-  window.addEventListener("blur", () => {
-    setInFocus(false);
-  });
-
-  window.addEventListener("pagehide", () => {
-    setInFocus(false);
-  });
-
-  window.addEventListener("focus", () => {
-    resumeApp("focus");
-  });
-
-  window.addEventListener("pageshow", (event) => {
-    resumeApp(event.persisted ? "pageshow_bfcache" : "pageshow");
   });
 };
 
