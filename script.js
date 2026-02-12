@@ -3,21 +3,28 @@ import { supabase } from "./supabaseClient.js";
 const BUDGET_KEY = "fluxo_budgets";
 const BUDGET_V2_KEY = "fluxo_budgets_v2";
 const CURRENCY_KEY = "fluxo_currency";
+const LOGIN_EMAIL_KEY = "fluxo_login_email";
 
 let expensesCache = [];
 let activeSession = null;
 let isAuthModeSignUp = false;
 let isSavingExpense = false;
 let isLoggingOut = false;
+let isAuthLoading = false;
 let uiBound = false;
 let authBound = false;
 let authFormBound = false;
+let focusListenersBound = false;
+let isResumingApp = false;
+let pendingResumeReason = "";
+let inFocus = true;
 
 const state = {
   amount: 0,
   currency: "EUR",
   category: null,
   date: new Date(),
+  quickDate: "today",
   dateSelection: {
     day: new Date().getDate(),
     month: new Date().getMonth(),
@@ -154,15 +161,22 @@ const formatDateText = (date) => {
   return `${day} ${month} ${year}`;
 };
 
+const toLocalDateKey = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const formatDisplayDate = (date) => {
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
-  const dateKey = date.toISOString().slice(0, 10);
-  if (dateKey === today.toISOString().slice(0, 10)) {
+  const dateKey = toLocalDateKey(date);
+  if (dateKey === toLocalDateKey(today)) {
     return `Hoy · ${formatDateText(date)}`;
   }
-  if (dateKey === yesterday.toISOString().slice(0, 10)) {
+  if (dateKey === toLocalDateKey(yesterday)) {
     return `Ayer · ${formatDateText(date)}`;
   }
   return formatDateText(date);
@@ -234,6 +248,10 @@ const setBootState = (state) => {
   window.__fluxoBootState = state;
 };
 
+const setInFocus = (value) => {
+  inFocus = value;
+};
+
 const hardSignOut = async () => {
   try {
     await supabase.auth.signOut();
@@ -254,6 +272,7 @@ const setAuthMessage = (message = "") => {
 };
 
 const setAuthLoading = (loading, message = "") => {
+  isAuthLoading = loading;
   authLoader.classList.toggle("is-hidden", !loading);
   authCard.classList.toggle("is-hidden", loading);
   if (loading && message) {
@@ -265,8 +284,10 @@ const setAuthLoading = (loading, message = "") => {
 };
 
 const showLogin = () => {
+  setInFocus(true);
   closeAllModals();
   resetActionFlags();
+  authEmail.value = loadLoginEmailFromSession();
   authScreen.classList.remove("is-hidden");
   authScreen.setAttribute("aria-hidden", "false");
   appShell.classList.add("is-hidden");
@@ -275,6 +296,7 @@ const showLogin = () => {
 };
 
 const showApp = () => {
+  setInFocus(true);
   closeAllModals();
   resetActionFlags();
   authScreen.classList.add("is-hidden");
@@ -354,6 +376,53 @@ const updateCurrency = (currency) => {
 
 const updateDateDisplay = () => {
   dateDisplay.textContent = formatDisplayDate(state.date);
+};
+
+const isSameLocalDate = (a, b) => toLocalDateKey(a) === toLocalDateKey(b);
+
+const updateQuickDatePills = () => {
+  document.querySelectorAll("#date-modal [data-quick]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.quick === state.quickDate);
+  });
+};
+
+const resetDateToToday = () => {
+  const now = new Date();
+  state.date = now;
+  state.quickDate = "today";
+  state.dateSelection = {
+    day: now.getDate(),
+    month: now.getMonth(),
+    year: now.getFullYear(),
+  };
+  state.dateMode = "day";
+  dateModeButtons.forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.mode === "day");
+  });
+  updateDateDisplay();
+  updateQuickDatePills();
+};
+
+const saveLoginEmailToSession = (value) => {
+  try {
+    const email = (value || "").trim();
+    if (email) {
+      sessionStorage.setItem(LOGIN_EMAIL_KEY, email);
+    } else {
+      sessionStorage.removeItem(LOGIN_EMAIL_KEY);
+    }
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+const loadLoginEmailFromSession = () => {
+  try {
+    return sessionStorage.getItem(LOGIN_EMAIL_KEY) || "";
+  } catch (error) {
+    console.error(error);
+    return "";
+  }
 };
 
 const normalizeExpenseRecord = (record) => ({
@@ -547,6 +616,9 @@ const setActiveTab = (target) => {
   panels.forEach((panel) => {
     panel.classList.toggle("is-visible", panel.id === `tab-${target}`);
   });
+  if (target === "add") {
+    resetDateToToday();
+  }
 };
 
 const handleDocumentClick = withSafeHandler(async (event) => {
@@ -607,6 +679,7 @@ const handleDocumentClick = withSafeHandler(async (event) => {
     dateModeButtons.forEach((btn) => {
       btn.classList.toggle("is-active", btn.dataset.mode === state.dateMode);
     });
+    updateQuickDatePills();
     renderDatePills();
     openDateModal();
     return;
@@ -621,7 +694,9 @@ const handleDocumentClick = withSafeHandler(async (event) => {
   const dateQuick = target.closest("#date-modal [data-quick]");
   if (dateQuick) {
     const now = new Date();
-    if (dateQuick.dataset.quick === "yesterday") {
+    const quick = dateQuick.dataset.quick;
+    state.quickDate = quick;
+    if (quick === "yesterday") {
       now.setDate(now.getDate() - 1);
     }
     state.dateSelection = {
@@ -629,6 +704,9 @@ const handleDocumentClick = withSafeHandler(async (event) => {
       month: now.getMonth(),
       year: now.getFullYear(),
     };
+    state.date = buildDateFromSelection();
+    updateDateDisplay();
+    updateQuickDatePills();
     renderDatePills();
     return;
   }
@@ -637,6 +715,19 @@ const handleDocumentClick = withSafeHandler(async (event) => {
   if (datePill) {
     const { type, value } = datePill.dataset;
     updateDateSelection(type, value);
+    state.date = buildDateFromSelection();
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    if (isSameLocalDate(state.date, today)) {
+      state.quickDate = "today";
+    } else if (isSameLocalDate(state.date, yesterday)) {
+      state.quickDate = "yesterday";
+    } else {
+      state.quickDate = null;
+    }
+    updateDateDisplay();
+    updateQuickDatePills();
     renderDatePills();
     return;
   }
@@ -655,6 +746,7 @@ const handleDocumentClick = withSafeHandler(async (event) => {
   if (dateConfirm) {
     state.date = buildDateFromSelection();
     updateDateDisplay();
+    updateQuickDatePills();
     closeDateModal();
     return;
   }
@@ -1944,6 +2036,7 @@ const setupBudgets = () => {
 const refreshAppData = async () => {
   setAuthLoading(true, "Sincronizando gastos…");
   try {
+    resetDateToToday();
     const expenses = await fetchExpensesFromSupabase();
     buildYearOptions(expenses);
     buildMonthOptions();
@@ -2005,6 +2098,7 @@ const bindAuthFormOnce = () => {
     }
 
     authSubmit.disabled = true;
+    saveLoginEmailToSession(email);
     setAuthMessage("");
     try {
       if (isAuthModeSignUp) {
@@ -2021,6 +2115,85 @@ const bindAuthFormOnce = () => {
 
   authToggle.addEventListener("click", () => {
     showAuthMode(!isAuthModeSignUp);
+  });
+
+  authEmail.addEventListener("input", () => {
+    saveLoginEmailToSession(authEmail.value);
+  });
+};
+
+const resumeApp = async (reason = "resume") => {
+  if (isResumingApp) {
+    pendingResumeReason = reason;
+    return;
+  }
+  isResumingApp = true;
+  try {
+    setInFocus(true);
+    closeAllModals();
+    resetActionFlags();
+    authSubmit.disabled = false;
+    if (isAuthLoading) {
+      setAuthLoading(false);
+    }
+
+    const sessionResult = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise((resolve) => setTimeout(() => resolve({ data: { session: null } }), 2000)),
+    ]);
+    const session = sessionResult?.data?.session || null;
+
+    activeSession = session;
+    if (!session) {
+      expensesCache = [];
+      showLogin();
+      return;
+    }
+
+    if (appShell.classList.contains("is-hidden")) {
+      showApp();
+    }
+  } catch (error) {
+    console.error(`[resumeApp:${reason}]`, error);
+    showLogin();
+  } finally {
+    isResumingApp = false;
+    if (pendingResumeReason) {
+      const nextReason = pendingResumeReason;
+      pendingResumeReason = "";
+      resumeApp(nextReason);
+    }
+  }
+};
+
+const bindFocusListenersOnce = () => {
+  if (focusListenersBound) {
+    return;
+  }
+  focusListenersBound = true;
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      setInFocus(false);
+      return;
+    }
+    resumeApp("visibilitychange");
+  });
+
+  window.addEventListener("blur", () => {
+    setInFocus(false);
+  });
+
+  window.addEventListener("pagehide", () => {
+    setInFocus(false);
+  });
+
+  window.addEventListener("focus", () => {
+    resumeApp("focus");
+  });
+
+  window.addEventListener("pageshow", (event) => {
+    resumeApp(event.persisted ? "pageshow_bfcache" : "pageshow");
   });
 };
 
@@ -2120,11 +2293,13 @@ const registerAuthListenerOnce = () => {
 };
 
 const boot = async () => {
+  resetDateToToday();
   showLogin();
   closeAllModals();
   hardSignOut();
   bindUIOnce();
   bindAuthFormOnce();
+  bindFocusListenersOnce();
   showAuthMode(false);
   await initAuthAndRender();
   registerAuthListenerOnce();

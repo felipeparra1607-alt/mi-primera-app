@@ -149,7 +149,7 @@ select {
   max-width: 980px;
   margin: 48px auto 90px;
   padding: 32px;
-  background: var(--card-bg);
+  background: linear-gradient(145deg, #f8fbff 0%, #eef3ff 48%, #e9efff 100%);
   border-radius: 32px;
   box-shadow: var(--shadow), var(--glow);
 }
@@ -1505,5 +1505,11 @@ select:focus,
 
   .vg-donut-content {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 900px) {
+  .app-header {
+    background: linear-gradient(135deg, #0b1220 0%, #101b2f 45%, #0a2a3a 100%);
   }
 }
