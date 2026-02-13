@@ -1428,6 +1428,10 @@ select:focus,
     margin-bottom: 16px;
   }
 
+  .scan-receipt-wrap {
+    display: block;
+  }
+
   .amount-control {
     grid-template-columns: 1fr;
     grid-template-areas:
