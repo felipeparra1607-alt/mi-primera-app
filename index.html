@@ -54,7 +54,7 @@
           <span class="scan-receipt-plus" aria-hidden="true">+</span>
           Escanear recibo
         </button>
-        <input id="scan-receipt-input" type="file" accept="image/*" capture="environment" hidden />
+        <input id="scan-receipt-input" type="file" accept="image/*,application/pdf" capture="environment" hidden />
       </div>
 
       <div class="field">
@@ -129,6 +129,7 @@
       </div>
 
       <button class="primary-btn" type="button" id="save-expense">Añadir gasto</button>
+      <button class="cancel-btn" type="button" id="cancel-expense">Cancelar</button>
     </section>
 
     <section class="tab-panel" id="tab-view" role="tabpanel">

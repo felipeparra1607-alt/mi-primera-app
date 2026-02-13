@@ -428,9 +428,6 @@ const loadLoginEmailFromSession = () => {
   }
 };
 
-const isMobileDevice = () =>
-  window.matchMedia("(pointer: coarse)").matches || window.matchMedia("(max-width: 768px)").matches;
-
 const getSupabaseJwt = () => {
   try {
     const authKey = Object.keys(localStorage).find(
@@ -537,10 +534,26 @@ const setScanButtonState = (loading) => {
     : '<span class="scan-receipt-plus" aria-hidden="true">+</span>Escanear recibo';
 };
 
+const getDefaultCurrency = () => {
+  const savedCurrency = localStorage.getItem(CURRENCY_KEY);
+  return savedCurrency || "EUR";
+};
+
 const handleReceiptScan = async (file) => {
-  if (!file || isScanningReceipt || !isMobileDevice()) {
+  if (!file || isScanningReceipt) {
     return;
   }
+
+  const fileType = String(file.type || "").toLowerCase();
+  const fileName = String(file.name || "").toLowerCase();
+  if (fileType === "application/pdf" || fileName.endsWith(".pdf")) {
+    showToast("PDF no soportado todavía, sube una imagen");
+    if (scanReceiptInput) {
+      scanReceiptInput.value = "";
+    }
+    return;
+  }
+
   isScanningReceipt = true;
   setScanButtonState(true);
 
@@ -552,10 +565,7 @@ const handleReceiptScan = async (file) => {
       categories: CATEGORIES.map((item) => item.label),
     });
     applyScanResultToForm(payload.result || {});
-    const shouldSave = window.confirm("¿Guardar este gasto con los datos detectados?");
-    if (shouldSave) {
-      await handleSave();
-    }
+    showToast("Recibo escaneado. Revisa y pulsa Añadir gasto.");
   } catch (error) {
     showToast(error?.message || "No se pudo escanear el recibo.");
   } finally {
@@ -781,10 +791,13 @@ const handleDocumentClick = withSafeHandler(async (event) => {
 
   const scanTrigger = target.closest("#scan-receipt-btn");
   if (scanTrigger) {
-    if (!isMobileDevice()) {
-      return;
-    }
     scanReceiptInput?.click();
+    return;
+  }
+
+  const cancelTrigger = target.closest("#cancel-expense");
+  if (cancelTrigger) {
+    clearAddExpenseForm();
     return;
   }
 
@@ -1998,7 +2011,7 @@ const renderExpenses = () => {
   }
 };
 
-const resetForm = () => {
+const clearAddExpenseForm = () => {
   conceptInput.value = "";
   state.amount = 0;
   updateAmountDisplay();
@@ -2007,6 +2020,13 @@ const resetForm = () => {
     card.classList.remove("selected");
   });
   state.category = null;
+  updateCurrency(getDefaultCurrency());
+  resetDateToToday();
+  isScanningReceipt = false;
+  setScanButtonState(false);
+  if (scanReceiptInput) {
+    scanReceiptInput.value = "";
+  }
 };
 
 const handleLogout = async () => {
@@ -2069,7 +2089,7 @@ const handleSave = async () => {
     showToast("✅ Gasto guardado");
     buildYearOptions(loadExpenses());
     renderExpenses();
-    resetForm();
+    clearAddExpenseForm();
   } catch (error) {
     handleUIError(error, "No se pudo guardar el gasto.");
   } finally {
