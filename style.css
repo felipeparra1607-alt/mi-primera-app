@@ -228,6 +228,33 @@ h2 {
   margin-bottom: 22px;
 }
 
+.scan-receipt-wrap {
+  display: none;
+  margin-bottom: 14px;
+}
+
+.scan-receipt-btn {
+  width: 100%;
+  height: 48px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+  color: #0b1220;
+  font-size: 15px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.scan-receipt-plus {
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 700;
+}
+
 label {
   display: block;
   font-size: 13px;
@@ -1386,6 +1413,10 @@ select:focus,
 
   .field {
     margin-bottom: 16px;
+  }
+
+  .scan-receipt-wrap {
+    display: block;
   }
 
   .amount-control {

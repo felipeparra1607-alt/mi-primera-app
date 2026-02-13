@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient.js";
+import { supabase, SUPABASE_ANON_KEY } from "./supabaseClient.js";
 
 const BUDGET_KEY = "fluxo_budgets";
 const BUDGET_V2_KEY = "fluxo_budgets_v2";
@@ -11,6 +11,7 @@ let isAuthModeSignUp = false;
 let isSavingExpense = false;
 let isLoggingOut = false;
 let isAuthLoading = false;
+let isScanningReceipt = false;
 let uiBound = false;
 let authBound = false;
 let authFormBound = false;
@@ -95,6 +96,8 @@ const confirmDateBtn = document.getElementById("confirm-date");
 const toast = document.getElementById("toast");
 const saveBtn = document.getElementById("save-expense");
 const conceptInput = document.getElementById("concept");
+const scanReceiptBtn = document.getElementById("scan-receipt-btn");
+const scanReceiptInput = document.getElementById("scan-receipt-input");
 const yearSelect = document.getElementById("year-select");
 const monthSelect = document.getElementById("month-select");
 const expensesList = document.getElementById("expenses-list");
@@ -425,6 +428,145 @@ const loadLoginEmailFromSession = () => {
   }
 };
 
+const isMobileDevice = () =>
+  window.matchMedia("(pointer: coarse)").matches || window.matchMedia("(max-width: 768px)").matches;
+
+const getSupabaseJwt = () => {
+  try {
+    const authKey = Object.keys(localStorage).find(
+      (key) => key.startsWith("sb-") && key.includes("auth-token")
+    );
+    if (!authKey) {
+      return null;
+    }
+    const raw = localStorage.getItem(authKey);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw);
+    return parsed?.access_token || null;
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+};
+
+const fileToBase64Raw = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || "");
+      const base64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
+      resolve({ base64, mimeType: file.type || "image/jpeg" });
+    };
+    reader.onerror = () => reject(new Error("No se pudo leer la imagen."));
+    reader.readAsDataURL(file);
+  });
+
+const callReceiptScan = async ({ base64, mimeType, categories }) => {
+  const jwt = getSupabaseJwt();
+  if (!jwt) {
+    throw new Error("Debes iniciar sesión para escanear recibos.");
+  }
+
+  const response = await fetch(
+    "https://xjcgrobeywchpfvmmiqe.supabase.co/functions/v1/receipt-scan",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+        "Content-Type": "application/json",
+        apikey: SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({
+        imageBase64: base64,
+        mimeType,
+        categories,
+      }),
+    }
+  );
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload?.ok) {
+    throw new Error(payload?.error || payload?.message || "No se pudo escanear el recibo.");
+  }
+  return payload;
+};
+
+const applyScanResultToForm = (result = {}) => {
+  const amount = Number(result.amount || 0);
+  if (amount > 0) {
+    state.amount = amount;
+    updateAmountDisplay();
+    amountInput.value = String(amount);
+  }
+
+  if (result.date) {
+    const parsedDate = new Date(`${String(result.date).slice(0, 10)}T12:00:00`);
+    if (!Number.isNaN(parsedDate.getTime())) {
+      state.date = parsedDate;
+      state.dateSelection = {
+        day: parsedDate.getDate(),
+        month: parsedDate.getMonth(),
+        year: parsedDate.getFullYear(),
+      };
+      updateDateDisplay();
+      updateQuickDatePills();
+    }
+  }
+
+  const normalizedCategory = CATEGORIES.find(
+    (item) => item.label.toLowerCase() === String(result.category || "").toLowerCase()
+  );
+  if (normalizedCategory) {
+    setCategory(normalizedCategory.key);
+  }
+
+  if (!conceptInput.value.trim() && result.merchant) {
+    conceptInput.value = String(result.merchant).trim();
+  }
+};
+
+const setScanButtonState = (loading) => {
+  if (!scanReceiptBtn) {
+    return;
+  }
+  scanReceiptBtn.disabled = loading;
+  scanReceiptBtn.innerHTML = loading
+    ? '<span class="scan-receipt-plus" aria-hidden="true">+</span>Escaneando…'
+    : '<span class="scan-receipt-plus" aria-hidden="true">+</span>Escanear recibo';
+};
+
+const handleReceiptScan = async (file) => {
+  if (!file || isScanningReceipt || !isMobileDevice()) {
+    return;
+  }
+  isScanningReceipt = true;
+  setScanButtonState(true);
+
+  try {
+    const { base64, mimeType } = await fileToBase64Raw(file);
+    const payload = await callReceiptScan({
+      base64,
+      mimeType,
+      categories: CATEGORIES.map((item) => item.label),
+    });
+    applyScanResultToForm(payload.result || {});
+    const shouldSave = window.confirm("¿Guardar este gasto con los datos detectados?");
+    if (shouldSave) {
+      await handleSave();
+    }
+  } catch (error) {
+    showToast(error?.message || "No se pudo escanear el recibo.");
+  } finally {
+    if (scanReceiptInput) {
+      scanReceiptInput.value = "";
+    }
+    setScanButtonState(false);
+    isScanningReceipt = false;
+  }
+};
+
 const normalizeExpenseRecord = (record) => ({
   id: String(record.id),
   concept: record.concept || "",
@@ -634,6 +776,15 @@ const handleDocumentClick = withSafeHandler(async (event) => {
   const saveTrigger = target.closest("#save-expense");
   if (saveTrigger) {
     await handleSave();
+    return;
+  }
+
+  const scanTrigger = target.closest("#scan-receipt-btn");
+  if (scanTrigger) {
+    if (!isMobileDevice()) {
+      return;
+    }
+    scanReceiptInput?.click();
     return;
   }
 
@@ -2071,6 +2222,10 @@ const bindUIOnce = () => {
   }
   uiBound = true;
   document.addEventListener("click", handleDocumentClick);
+  scanReceiptInput?.addEventListener("change", (event) => {
+    const file = event.target?.files?.[0];
+    handleReceiptScan(file);
+  });
   setupTabs();
   setupAmountControl();
   setupCategorySelection();
