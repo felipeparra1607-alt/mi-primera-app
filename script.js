@@ -1,23 +1,31 @@
-import { supabase } from "./supabaseClient.js";
+import { supabase, SUPABASE_ANON_KEY } from "./supabaseClient.js";
 
 const BUDGET_KEY = "fluxo_budgets";
 const BUDGET_V2_KEY = "fluxo_budgets_v2";
 const CURRENCY_KEY = "fluxo_currency";
+const LOGIN_EMAIL_KEY = "fluxo_login_email";
 
 let expensesCache = [];
 let activeSession = null;
 let isAuthModeSignUp = false;
 let isSavingExpense = false;
 let isLoggingOut = false;
+let isAuthLoading = false;
+let isScanningReceipt = false;
 let uiBound = false;
 let authBound = false;
 let authFormBound = false;
+let focusListenersBound = false;
+let isResumingApp = false;
+let pendingResumeReason = "";
+let inFocus = true;
 
 const state = {
   amount: 0,
   currency: "EUR",
   category: null,
   date: new Date(),
+  quickDate: "today",
   dateSelection: {
     day: new Date().getDate(),
     month: new Date().getMonth(),
@@ -88,6 +96,8 @@ const confirmDateBtn = document.getElementById("confirm-date");
 const toast = document.getElementById("toast");
 const saveBtn = document.getElementById("save-expense");
 const conceptInput = document.getElementById("concept");
+const scanReceiptBtn = document.getElementById("scan-receipt-btn");
+const scanReceiptInput = document.getElementById("scan-receipt-input");
 const yearSelect = document.getElementById("year-select");
 const monthSelect = document.getElementById("month-select");
 const expensesList = document.getElementById("expenses-list");
@@ -154,15 +164,22 @@ const formatDateText = (date) => {
   return `${day} ${month} ${year}`;
 };
 
+const toLocalDateKey = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const formatDisplayDate = (date) => {
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
-  const dateKey = date.toISOString().slice(0, 10);
-  if (dateKey === today.toISOString().slice(0, 10)) {
+  const dateKey = toLocalDateKey(date);
+  if (dateKey === toLocalDateKey(today)) {
     return `Hoy · ${formatDateText(date)}`;
   }
-  if (dateKey === yesterday.toISOString().slice(0, 10)) {
+  if (dateKey === toLocalDateKey(yesterday)) {
     return `Ayer · ${formatDateText(date)}`;
   }
   return formatDateText(date);
@@ -234,6 +251,10 @@ const setBootState = (state) => {
   window.__fluxoBootState = state;
 };
 
+const setInFocus = (value) => {
+  inFocus = value;
+};
+
 const hardSignOut = async () => {
   try {
     await supabase.auth.signOut();
@@ -254,6 +275,7 @@ const setAuthMessage = (message = "") => {
 };
 
 const setAuthLoading = (loading, message = "") => {
+  isAuthLoading = loading;
   authLoader.classList.toggle("is-hidden", !loading);
   authCard.classList.toggle("is-hidden", loading);
   if (loading && message) {
@@ -265,8 +287,10 @@ const setAuthLoading = (loading, message = "") => {
 };
 
 const showLogin = () => {
+  setInFocus(true);
   closeAllModals();
   resetActionFlags();
+  authEmail.value = loadLoginEmailFromSession();
   authScreen.classList.remove("is-hidden");
   authScreen.setAttribute("aria-hidden", "false");
   appShell.classList.add("is-hidden");
@@ -275,6 +299,7 @@ const showLogin = () => {
 };
 
 const showApp = () => {
+  setInFocus(true);
   closeAllModals();
   resetActionFlags();
   authScreen.classList.add("is-hidden");
@@ -354,6 +379,192 @@ const updateCurrency = (currency) => {
 
 const updateDateDisplay = () => {
   dateDisplay.textContent = formatDisplayDate(state.date);
+};
+
+const isSameLocalDate = (a, b) => toLocalDateKey(a) === toLocalDateKey(b);
+
+const updateQuickDatePills = () => {
+  document.querySelectorAll("#date-modal [data-quick]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.quick === state.quickDate);
+  });
+};
+
+const resetDateToToday = () => {
+  const now = new Date();
+  state.date = now;
+  state.quickDate = "today";
+  state.dateSelection = {
+    day: now.getDate(),
+    month: now.getMonth(),
+    year: now.getFullYear(),
+  };
+  state.dateMode = "day";
+  dateModeButtons.forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.mode === "day");
+  });
+  updateDateDisplay();
+  updateQuickDatePills();
+};
+
+const saveLoginEmailToSession = (value) => {
+  try {
+    const email = (value || "").trim();
+    if (email) {
+      sessionStorage.setItem(LOGIN_EMAIL_KEY, email);
+    } else {
+      sessionStorage.removeItem(LOGIN_EMAIL_KEY);
+    }
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+const loadLoginEmailFromSession = () => {
+  try {
+    return sessionStorage.getItem(LOGIN_EMAIL_KEY) || "";
+  } catch (error) {
+    console.error(error);
+    return "";
+  }
+};
+
+const isMobileDevice = () =>
+  window.matchMedia("(pointer: coarse)").matches || window.matchMedia("(max-width: 768px)").matches;
+
+const getSupabaseJwt = () => {
+  try {
+    const authKey = Object.keys(localStorage).find(
+      (key) => key.startsWith("sb-") && key.includes("auth-token")
+    );
+    if (!authKey) {
+      return null;
+    }
+    const raw = localStorage.getItem(authKey);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw);
+    return parsed?.access_token || null;
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+};
+
+const fileToBase64Raw = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || "");
+      const base64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
+      resolve({ base64, mimeType: file.type || "image/jpeg" });
+    };
+    reader.onerror = () => reject(new Error("No se pudo leer la imagen."));
+    reader.readAsDataURL(file);
+  });
+
+const callReceiptScan = async ({ base64, mimeType, categories }) => {
+  const jwt = getSupabaseJwt();
+  if (!jwt) {
+    throw new Error("Debes iniciar sesión para escanear recibos.");
+  }
+
+  const response = await fetch(
+    "https://xjcgrobeywchpfvmmiqe.supabase.co/functions/v1/receipt-scan",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+        "Content-Type": "application/json",
+        apikey: SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({
+        imageBase64: base64,
+        mimeType,
+        categories,
+      }),
+    }
+  );
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload?.ok) {
+    throw new Error(payload?.error || payload?.message || "No se pudo escanear el recibo.");
+  }
+  return payload;
+};
+
+const applyScanResultToForm = (result = {}) => {
+  const amount = Number(result.amount || 0);
+  if (amount > 0) {
+    state.amount = amount;
+    updateAmountDisplay();
+    amountInput.value = String(amount);
+  }
+
+  if (result.date) {
+    const parsedDate = new Date(`${String(result.date).slice(0, 10)}T12:00:00`);
+    if (!Number.isNaN(parsedDate.getTime())) {
+      state.date = parsedDate;
+      state.dateSelection = {
+        day: parsedDate.getDate(),
+        month: parsedDate.getMonth(),
+        year: parsedDate.getFullYear(),
+      };
+      updateDateDisplay();
+      updateQuickDatePills();
+    }
+  }
+
+  const normalizedCategory = CATEGORIES.find(
+    (item) => item.label.toLowerCase() === String(result.category || "").toLowerCase()
+  );
+  if (normalizedCategory) {
+    setCategory(normalizedCategory.key);
+  }
+
+  if (!conceptInput.value.trim() && result.merchant) {
+    conceptInput.value = String(result.merchant).trim();
+  }
+};
+
+const setScanButtonState = (loading) => {
+  if (!scanReceiptBtn) {
+    return;
+  }
+  scanReceiptBtn.disabled = loading;
+  scanReceiptBtn.innerHTML = loading
+    ? '<span class="scan-receipt-plus" aria-hidden="true">+</span>Escaneando…'
+    : '<span class="scan-receipt-plus" aria-hidden="true">+</span>Escanear recibo';
+};
+
+const handleReceiptScan = async (file) => {
+  if (!file || isScanningReceipt || !isMobileDevice()) {
+    return;
+  }
+  isScanningReceipt = true;
+  setScanButtonState(true);
+
+  try {
+    const { base64, mimeType } = await fileToBase64Raw(file);
+    const payload = await callReceiptScan({
+      base64,
+      mimeType,
+      categories: CATEGORIES.map((item) => item.label),
+    });
+    applyScanResultToForm(payload.result || {});
+    const shouldSave = window.confirm("¿Guardar este gasto con los datos detectados?");
+    if (shouldSave) {
+      await handleSave();
+    }
+  } catch (error) {
+    showToast(error?.message || "No se pudo escanear el recibo.");
+  } finally {
+    if (scanReceiptInput) {
+      scanReceiptInput.value = "";
+    }
+    setScanButtonState(false);
+    isScanningReceipt = false;
+  }
 };
 
 const normalizeExpenseRecord = (record) => ({
@@ -547,6 +758,9 @@ const setActiveTab = (target) => {
   panels.forEach((panel) => {
     panel.classList.toggle("is-visible", panel.id === `tab-${target}`);
   });
+  if (target === "add") {
+    resetDateToToday();
+  }
 };
 
 const handleDocumentClick = withSafeHandler(async (event) => {
@@ -562,6 +776,15 @@ const handleDocumentClick = withSafeHandler(async (event) => {
   const saveTrigger = target.closest("#save-expense");
   if (saveTrigger) {
     await handleSave();
+    return;
+  }
+
+  const scanTrigger = target.closest("#scan-receipt-btn");
+  if (scanTrigger) {
+    if (!isMobileDevice()) {
+      return;
+    }
+    scanReceiptInput?.click();
     return;
   }
 
@@ -607,6 +830,7 @@ const handleDocumentClick = withSafeHandler(async (event) => {
     dateModeButtons.forEach((btn) => {
       btn.classList.toggle("is-active", btn.dataset.mode === state.dateMode);
     });
+    updateQuickDatePills();
     renderDatePills();
     openDateModal();
     return;
@@ -621,7 +845,9 @@ const handleDocumentClick = withSafeHandler(async (event) => {
   const dateQuick = target.closest("#date-modal [data-quick]");
   if (dateQuick) {
     const now = new Date();
-    if (dateQuick.dataset.quick === "yesterday") {
+    const quick = dateQuick.dataset.quick;
+    state.quickDate = quick;
+    if (quick === "yesterday") {
       now.setDate(now.getDate() - 1);
     }
     state.dateSelection = {
@@ -629,6 +855,9 @@ const handleDocumentClick = withSafeHandler(async (event) => {
       month: now.getMonth(),
       year: now.getFullYear(),
     };
+    state.date = buildDateFromSelection();
+    updateDateDisplay();
+    updateQuickDatePills();
     renderDatePills();
     return;
   }
@@ -637,6 +866,19 @@ const handleDocumentClick = withSafeHandler(async (event) => {
   if (datePill) {
     const { type, value } = datePill.dataset;
     updateDateSelection(type, value);
+    state.date = buildDateFromSelection();
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    if (isSameLocalDate(state.date, today)) {
+      state.quickDate = "today";
+    } else if (isSameLocalDate(state.date, yesterday)) {
+      state.quickDate = "yesterday";
+    } else {
+      state.quickDate = null;
+    }
+    updateDateDisplay();
+    updateQuickDatePills();
     renderDatePills();
     return;
   }
@@ -655,6 +897,7 @@ const handleDocumentClick = withSafeHandler(async (event) => {
   if (dateConfirm) {
     state.date = buildDateFromSelection();
     updateDateDisplay();
+    updateQuickDatePills();
     closeDateModal();
     return;
   }
@@ -1944,6 +2187,7 @@ const setupBudgets = () => {
 const refreshAppData = async () => {
   setAuthLoading(true, "Sincronizando gastos…");
   try {
+    resetDateToToday();
     const expenses = await fetchExpensesFromSupabase();
     buildYearOptions(expenses);
     buildMonthOptions();
@@ -1978,6 +2222,10 @@ const bindUIOnce = () => {
   }
   uiBound = true;
   document.addEventListener("click", handleDocumentClick);
+  scanReceiptInput?.addEventListener("change", (event) => {
+    const file = event.target?.files?.[0];
+    handleReceiptScan(file);
+  });
   setupTabs();
   setupAmountControl();
   setupCategorySelection();
@@ -2005,6 +2253,7 @@ const bindAuthFormOnce = () => {
     }
 
     authSubmit.disabled = true;
+    saveLoginEmailToSession(email);
     setAuthMessage("");
     try {
       if (isAuthModeSignUp) {
@@ -2021,6 +2270,85 @@ const bindAuthFormOnce = () => {
 
   authToggle.addEventListener("click", () => {
     showAuthMode(!isAuthModeSignUp);
+  });
+
+  authEmail.addEventListener("input", () => {
+    saveLoginEmailToSession(authEmail.value);
+  });
+};
+
+const resumeApp = async (reason = "resume") => {
+  if (isResumingApp) {
+    pendingResumeReason = reason;
+    return;
+  }
+  isResumingApp = true;
+  try {
+    setInFocus(true);
+    closeAllModals();
+    resetActionFlags();
+    authSubmit.disabled = false;
+    if (isAuthLoading) {
+      setAuthLoading(false);
+    }
+
+    const sessionResult = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise((resolve) => setTimeout(() => resolve({ data: { session: null } }), 2000)),
+    ]);
+    const session = sessionResult?.data?.session || null;
+
+    activeSession = session;
+    if (!session) {
+      expensesCache = [];
+      showLogin();
+      return;
+    }
+
+    if (appShell.classList.contains("is-hidden")) {
+      showApp();
+    }
+  } catch (error) {
+    console.error(`[resumeApp:${reason}]`, error);
+    showLogin();
+  } finally {
+    isResumingApp = false;
+    if (pendingResumeReason) {
+      const nextReason = pendingResumeReason;
+      pendingResumeReason = "";
+      resumeApp(nextReason);
+    }
+  }
+};
+
+const bindFocusListenersOnce = () => {
+  if (focusListenersBound) {
+    return;
+  }
+  focusListenersBound = true;
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      setInFocus(false);
+      return;
+    }
+    resumeApp("visibilitychange");
+  });
+
+  window.addEventListener("blur", () => {
+    setInFocus(false);
+  });
+
+  window.addEventListener("pagehide", () => {
+    setInFocus(false);
+  });
+
+  window.addEventListener("focus", () => {
+    resumeApp("focus");
+  });
+
+  window.addEventListener("pageshow", (event) => {
+    resumeApp(event.persisted ? "pageshow_bfcache" : "pageshow");
   });
 };
 
@@ -2120,11 +2448,13 @@ const registerAuthListenerOnce = () => {
 };
 
 const boot = async () => {
+  resetDateToToday();
   showLogin();
   closeAllModals();
   hardSignOut();
   bindUIOnce();
   bindAuthFormOnce();
+  bindFocusListenersOnce();
   showAuthMode(false);
   await initAuthAndRender();
   registerAuthListenerOnce();
