@@ -13,7 +13,9 @@
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial;
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -27,6 +29,7 @@ body {
   background: linear-gradient(135deg, #0b1220 0%, #101b2f 100%);
   color: var(--text);
   font-family: inherit;
+  overflow-x: hidden;
 }
 
 .auth-screen {
@@ -36,7 +39,10 @@ body {
   display: grid;
   place-items: center;
   z-index: 200;
-  padding: 18px;
+  padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right))
+    max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .auth-screen.is-hidden {
@@ -1386,11 +1392,15 @@ select:focus,
 
   .app {
     max-width: 100%;
+    width: 100%;
+    min-height: 100vh;
     min-height: 100dvh;
     margin: 0;
-    padding: 14px 14px 20px;
+    padding: calc(env(safe-area-inset-top, 0px) + 14px) 14px calc(env(safe-area-inset-bottom, 0px) + 20px);
     border-radius: 0;
     box-shadow: none;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .app-header {
